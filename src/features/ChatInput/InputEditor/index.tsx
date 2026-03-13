@@ -17,11 +17,12 @@ import { Editor, FloatMenu, SlashMenu, useEditorState } from '@lobehub/editor/re
 import { combineKeys } from '@lobehub/ui';
 import { css, cx } from 'antd-style';
 import { Table2Icon } from 'lucide-react';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 
 import { usePasteFile, useUploadFiles } from '@/components/DragUploadZone';
+import { useIMECompositionEvent } from '@/hooks/useIMECompositionEvent';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
 import { useUserStore } from '@/store/user';
@@ -54,7 +55,7 @@ const InputEditor = memo<{ defaultRows?: number }>(({ defaultRows = 2 }) => {
   const { enableScope, disableScope } = useHotkeysContext();
   const { t } = useTranslation(['editor', 'chat']);
 
-  const isChineseInput = useRef(false);
+  const { compositionProps, isComposingRef } = useIMECompositionEvent();
 
   const useCmdEnterToSend = useUserStore(preferenceSelectors.useCmdEnterToSend);
 
@@ -182,12 +183,7 @@ const InputEditor = memo<{ defaultRows?: number }>(({ defaultRows = 2 }) => {
       onChange={() => {
         updateMarkdownContent();
       }}
-      onCompositionEnd={() => {
-        isChineseInput.current = false;
-      }}
-      onCompositionStart={() => {
-        isChineseInput.current = true;
-      }}
+      {...compositionProps}
       onContextMenu={async ({ event: e, editor }) => {
         if (isDesktop) {
           e.preventDefault();
@@ -204,7 +200,7 @@ const InputEditor = memo<{ defaultRows?: number }>(({ defaultRows = 2 }) => {
         enableScope(HotkeyEnum.AddUserMessage);
       }}
       onPressEnter={({ event: e }) => {
-        if (e.shiftKey || isChineseInput.current) return;
+        if (e.shiftKey || isComposingRef.current) return;
         // when user like alt + enter to add ai message
         if (e.altKey && hotkey === combineKeys([KeyEnum.Alt, KeyEnum.Enter])) return true;
         const commandKey = isCommandPressed(e);
