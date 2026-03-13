@@ -6,7 +6,7 @@ import { Alert, Button, Center, Flexbox, Icon, Input, Text } from '@lobehub/ui';
 import { Divider } from 'antd';
 import { cssVar } from 'antd-style';
 import { Cloud, Server, Undo2Icon } from 'lucide-react';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import urlJoin from 'url-join';
 
@@ -69,6 +69,7 @@ const LoginStep = memo<LoginStepProps>(({ onBack, onNext }) => {
   const [showEndpoint, setShowEndpoint] = useState(false);
   const [hasLegacyLocalDb, setHasLegacyLocalDb] = useState(false);
   const [localRemainingSeconds, setLocalRemainingSeconds] = useState<number | null>(null);
+  const isChineseInput = useRef(false);
 
   const [
     dataSyncConfig,
@@ -457,6 +458,12 @@ const LoginStep = memo<LoginStepProps>(({ onBack, onNext }) => {
           style={{ width: '100%' }}
           value={endpoint}
           onChange={(e) => setEndpoint(e.target.value)}
+          onCompositionEnd={() => {
+            isChineseInput.current = false;
+          }}
+          onCompositionStart={() => {
+            isChineseInput.current = true;
+          }}
           onContextMenu={async (e) => {
             if (!isDesktop) return;
             e.preventDefault();
@@ -471,7 +478,7 @@ const LoginStep = memo<LoginStepProps>(({ onBack, onNext }) => {
             });
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !isChineseInput.current) {
               handleSelfhostConnect();
             }
           }}
