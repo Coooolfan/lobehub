@@ -13,6 +13,7 @@ import { PageAgentManifest } from '@lobechat/builtin-tool-page-agent';
 import { SkillStoreManifest } from '@lobechat/builtin-tool-skill-store';
 import { SkillsManifest } from '@lobechat/builtin-tool-skills';
 import { LobeToolsManifest } from '@lobechat/builtin-tool-tools';
+import { TopicReferenceManifest } from '@lobechat/builtin-tool-topic-reference';
 import { WebBrowsingManifest } from '@lobechat/builtin-tool-web-browsing';
 
 export const builtinToolIdentifiers: string[] = [
@@ -30,6 +31,7 @@ export const builtinToolIdentifiers: string[] = [
   GTDManifest.identifier,
   MemoryManifest.identifier,
   NotebookManifest.identifier,
+  TopicReferenceManifest.identifier,
   LobeToolsManifest.identifier,
   SkillStoreManifest.identifier,
 ];

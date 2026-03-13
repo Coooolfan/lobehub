@@ -220,6 +220,8 @@ export default {
   'builtins.lobe-web-browsing.apiName.search': 'Search pages',
   'builtins.lobe-web-browsing.inspector.noResults': 'No results',
   'builtins.lobe-web-browsing.title': 'Web Search',
+  'builtins.lobe-topic-reference.apiName.getTopicContext': 'Get Topic Context',
+  'builtins.lobe-topic-reference.title': 'Topic Reference',
   'confirm': 'Confirm',
   'debug.arguments': 'Arguments',
   'debug.error': 'Error log',

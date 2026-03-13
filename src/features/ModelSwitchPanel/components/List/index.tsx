@@ -1,6 +1,6 @@
 import { Flexbox } from '@lobehub/ui';
 import { type FC } from 'react';
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useBusinessModelListGuard } from '@/business/client/hooks/useBusinessModelListGuard';
@@ -66,11 +66,6 @@ export const List: FC<ListProps> = ({
 
   const listHeight = panelHeight - TOOLBAR_HEIGHT - FOOTER_HEIGHT;
 
-  const [scrollCount, setScrollCount] = useState(0);
-  const handleListScroll = useCallback(() => {
-    setScrollCount((c) => c + 1);
-  }, []);
-
   useLayoutEffect(() => {
     if (hasInitializedPositionRef.current) return;
 
@@ -85,13 +80,7 @@ export const List: FC<ListProps> = ({
   }, [listHeight, activeKey]);
 
   return (
-    <Flexbox
-      className={styles.list}
-      flex={1}
-      ref={listRef}
-      style={{ height: listHeight }}
-      onScroll={handleListScroll}
-    >
+    <Flexbox className={styles.list} flex={1} ref={listRef} style={{ height: listHeight }}>
       {listItems.map((item, index) => {
         const itemKey = menuKey(
           'provider' in item && item.provider ? item.provider.id : '',
@@ -117,7 +106,6 @@ export const List: FC<ListProps> = ({
             key={key}
             newLabel={newLabel}
             proLabel={proLabel}
-            scrollCount={scrollCount}
             onClose={handleClose}
             onModelChange={handleModelChange}
             onRestrictedModelClick={onRestrictedModelClick}

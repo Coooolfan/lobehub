@@ -372,11 +372,18 @@ export class AiAgentService {
       isModelSupportToolUse,
     };
 
+    // Dynamically inject topic-reference tool when prompt contains <refer_topic> tags
+    const hasTopicReference = /refer_topic/.test(prompt ?? '');
+    const agentPlugins = [
+      ...(agentConfig?.plugins ?? []),
+      ...(hasTopicReference ? ['lobe-topic-reference'] : []),
+    ];
+
     const toolsEngine = createServerAgentToolsEngine(toolsContext, {
       additionalManifests: [...lobehubSkillManifests, ...klavisManifests],
       agentConfig: {
         chatConfig: agentConfig.chatConfig ?? undefined,
-        plugins: agentConfig?.plugins ?? undefined,
+        plugins: agentPlugins,
       },
       deviceContext: gatewayConfigured
         ? { boundDeviceId, deviceOnline, gatewayConfigured: true }
