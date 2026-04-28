@@ -10,6 +10,7 @@ import FallbackIntervention from './Fallback';
 const metaMap: Record<string, { avatar?: string; title?: string }> = {
   'calculator': { title: 'Calculator' },
   'lobe-activator': { avatar: '🛠', title: 'Tools & Skills Activator' },
+  'mcp-tool': { avatar: 'MCP_AVATAR', title: 'MCP Tool' },
   'search': { title: 'Web Search' },
 };
 
@@ -17,13 +18,23 @@ vi.mock('@lobehub/ui', () => ({
   ActionIcon: ({ children, ...props }: { children?: ReactNode; [key: string]: unknown }) => (
     <button {...props}>{children}</button>
   ),
-  Avatar: ({ avatar, title }: { avatar?: string; title?: string }) => (
-    <img alt={title} src={avatar} />
+  Avatar: ({ alt, avatar, title }: { alt?: string; avatar?: string; title?: string }) => (
+    <img alt={alt || title} src={avatar} />
   ),
   Flexbox: ({ children, ...props }: { children?: ReactNode; [key: string]: unknown }) => (
     <div {...props}>{children}</div>
   ),
   Icon: () => <span>icon</span>,
+}));
+
+vi.mock('@lobehub/icons', () => ({
+  MCP: {
+    Avatar: ({ 'aria-label': ariaLabel }: { 'aria-label'?: string }) => (
+      <span aria-label={ariaLabel} role="img">
+        MCP
+      </span>
+    ),
+  },
 }));
 
 vi.mock('react-i18next', () => ({
@@ -118,5 +129,21 @@ describe('FallbackIntervention', () => {
 
     expect(screen.queryByText(iconUrl)).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Web Search' })).toHaveAttribute('src', iconUrl);
+  });
+
+  it('renders MCP sentinel avatars as the MCP icon', () => {
+    render(
+      <FallbackIntervention
+        apiName="listTools"
+        assistantGroupId="assistant-group-1"
+        id="message-1"
+        identifier="mcp-tool"
+        requestArgs="{}"
+        toolCallId="tool-call-1"
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: 'MCP Tool' })).toHaveTextContent('MCP');
+    expect(screen.queryByRole('img', { name: 'MCP_AVATAR' })).not.toBeInTheDocument();
   });
 });

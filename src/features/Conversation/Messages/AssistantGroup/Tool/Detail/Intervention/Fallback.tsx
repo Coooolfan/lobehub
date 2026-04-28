@@ -5,7 +5,7 @@ import {
 } from '@lobechat/builtin-tool-activator';
 import { builtinToolIdentifiers } from '@lobechat/builtin-tools/identifiers';
 import { safeParseJSON } from '@lobechat/utils';
-import { ActionIcon, Avatar, Flexbox, Icon } from '@lobehub/ui';
+import { ActionIcon, Flexbox, Icon } from '@lobehub/ui';
 import { createStaticStyles } from 'antd-style';
 import isEqual from 'fast-deep-equal';
 import { ChevronDown, ChevronRight, Edit3Icon } from 'lucide-react';
@@ -13,6 +13,7 @@ import { memo, Suspense, useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
+import PluginAvatar from '@/components/Plugins/PluginAvatar';
 import { pluginHelpers, useToolStore } from '@/store/tool';
 import { toolSelectors } from '@/store/tool/selectors';
 import { useUserStore } from '@/store/user';
@@ -150,12 +151,11 @@ const FallbackIntervention = memo<FallbackInterventionProps>(
       <Flexbox gap={4}>
         <Flexbox horizontal align="center" className={styles.description} gap={6}>
           {pluginMeta?.avatar && (
-            <Avatar
+            <PluginAvatar
+              alt={toolTitle}
               avatar={pluginMeta.avatar}
-              shape={'square'}
               size={16}
               style={{ flex: 'none' }}
-              title={toolTitle}
             />
           )}
           <span>

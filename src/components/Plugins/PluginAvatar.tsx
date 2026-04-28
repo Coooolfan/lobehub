@@ -13,10 +13,12 @@ interface PluginAvatarProps {
 const PluginAvatar = memo<PluginAvatarProps>(({ avatar, style, size = 40, alt }) => {
   return avatar === 'MCP_AVATAR' ? (
     <MCP.Avatar
+      aria-label={alt}
       className={'ant-avatar'}
       shape={'square'}
       size={size}
       style={{ flex: 'none', overflow: 'hidden', ...style }}
+      title={alt}
     />
   ) : (
     <Avatar
