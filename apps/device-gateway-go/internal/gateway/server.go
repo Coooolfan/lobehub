@@ -63,7 +63,7 @@ func (s *Server) hub(userID string) *hub {
 
 func (s *Server) withServiceAuth(next func(http.ResponseWriter, *http.Request, deviceHTTPBody)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer "+s.cfg.ServiceToken {
+		if s.cfg.ServiceToken == "" || r.Header.Get("Authorization") != "Bearer "+s.cfg.ServiceToken {
 			writeText(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}

@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"errors"
 	"os"
 	"time"
 )
@@ -12,6 +13,13 @@ type Config struct {
 	ServiceToken    string
 	ShutdownTimeout time.Duration
 	WriteTimeout    time.Duration
+}
+
+func (c Config) Validate() error {
+	if c.ServiceToken == "" {
+		return errors.New("SERVICE_TOKEN is required")
+	}
+	return nil
 }
 
 func ConfigFromEnv() Config {
