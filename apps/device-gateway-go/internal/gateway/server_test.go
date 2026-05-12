@@ -16,6 +16,23 @@ import (
 	"time"
 )
 
+func TestConfigRequiresServiceTokenAndRejectsEmptyBearer(t *testing.T) {
+	if err := (Config{}).Validate(); err == nil {
+		t.Fatal("expected empty SERVICE_TOKEN config to fail validation")
+	}
+	if err := (Config{ServiceToken: "service-token"}).Validate(); err != nil {
+		t.Fatalf("expected populated SERVICE_TOKEN config to pass validation: %v", err)
+	}
+
+	srv := NewServer(Config{})
+	httpSrv := httptest.NewServer(srv.Routes())
+	defer httpSrv.Close()
+
+	res := postJSON(t, httpSrv.URL+"/api/device/status", "", `{"userId":"u1"}`)
+	assertStatus(t, res, http.StatusUnauthorized)
+	assertBody(t, res, "Unauthorized")
+}
+
 func TestHTTPAuthAndOfflineResponses(t *testing.T) {
 	srv := NewServer(Config{ServiceToken: "service-token"})
 	httpSrv := httptest.NewServer(srv.Routes())

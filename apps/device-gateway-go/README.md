@@ -21,7 +21,7 @@ All `/api/device/*` endpoints require `Authorization: Bearer <SERVICE_TOKEN>` an
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PORT` | `8787` | HTTP listen port. |
-| `SERVICE_TOKEN` | empty | Shared service token for `/api/device/*` and WebSocket service-token auth. |
+| `SERVICE_TOKEN` | required | Shared service token for `/api/device/*` and WebSocket service-token auth. The process refuses to start without it. |
 | `JWKS_PUBLIC_KEY` | empty | JWKS JSON containing an RS256 public key for JWT WebSocket auth. |
 | `READ_TIMEOUT` | `30s` | Go HTTP server read timeout. |
 | `WRITE_TIMEOUT` | `30s` | Go HTTP server write timeout. |
