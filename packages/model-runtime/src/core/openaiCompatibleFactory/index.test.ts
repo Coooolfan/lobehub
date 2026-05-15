@@ -3111,9 +3111,7 @@ describe('LobeOpenAICompatibleFactory', () => {
           { headers: undefined, signal: undefined },
         );
 
-        expect(result).toEqual([
-          { arguments: { age: 28, name: 'Alice' }, name: 'person_extractor' },
-        ]);
+        expect(result).toEqual({ age: 28, name: 'Alice' });
       });
 
       it('should return undefined when no tool call found', async () => {
@@ -3238,7 +3236,7 @@ describe('LobeOpenAICompatibleFactory', () => {
           { headers: options.headers, signal: options.signal },
         );
 
-        expect(result).toEqual([{ arguments: { data: 'test' }, name: 'data_extractor' }]);
+        expect(result).toEqual({ data: 'test' });
       });
     });
   });

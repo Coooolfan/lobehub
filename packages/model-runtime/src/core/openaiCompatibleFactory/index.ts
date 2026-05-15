@@ -824,10 +824,12 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
           const toolCalls = res.choices[0].message.tool_calls!;
 
           try {
-            return toolCalls.map((item) => ({
-              arguments: JSON.parse(item.function.arguments),
-              name: item.function.name,
-            }));
+            // NOTICE: the other generateObject paths (Responses API / Chat Completions
+            // json_schema) return the parsed schema object directly. `tool_choice` forces
+            // a single tool call here, so mirror that contract by unwrapping the first
+            // call's arguments. Callers (e.g. BaseMemoryExtractor.structuredCall) feed
+            // the result straight into `schema.parse(...)`, which expected an object.
+            return JSON.parse(toolCalls[0].function.arguments);
           } catch {
             console.error('parse tool call arguments error:', toolCalls);
             return undefined;
