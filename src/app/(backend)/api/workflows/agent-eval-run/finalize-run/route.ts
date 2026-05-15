@@ -95,7 +95,6 @@ export const { POST } = serve<FinalizeRunPayload>(
     };
   },
   {
-    flowControl: { key: 'agent-eval-run.finalize-run', parallelism: 10, rate: 1 },
     qstashClient,
   },
 );

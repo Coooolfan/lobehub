@@ -125,7 +125,6 @@ export const { POST } = serve<RunBenchmarkPayload>(
     };
   },
   {
-    flowControl: { key: 'agent-eval-run.process-run', parallelism: 100, rate: 1 },
     qstashClient,
   },
 );

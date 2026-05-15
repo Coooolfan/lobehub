@@ -57,11 +57,6 @@ export const { POST } = serve<ExecuteTestCasePayload>(
     return { k, success: true, testCaseId };
   },
   {
-    flowControl: {
-      key: 'agent-eval-run.execute-test-case',
-      parallelism: 200,
-      ratePerSecond: 5,
-    },
     qstashClient,
   },
 );

@@ -141,7 +141,11 @@ export class AgentEvalRunWorkflow {
   static triggerRunBenchmark(payload: RunBenchmarkPayload) {
     const url = getWorkflowUrl(WORKFLOW_PATHS.runBenchmark);
     log('Triggering run-benchmark workflow for run: %s', payload.runId);
-    return workflowClient.trigger({ body: payload, url });
+    return workflowClient.trigger({
+      body: payload,
+      flowControl: { key: 'agent-eval-run.process-run', parallelism: 100, rate: 1 },
+      url,
+    });
   }
 
   /**
@@ -150,7 +154,11 @@ export class AgentEvalRunWorkflow {
   static triggerPaginateTestCases(payload: PaginateTestCasesPayload) {
     const url = getWorkflowUrl(WORKFLOW_PATHS.paginateTestCases);
     log('Triggering paginate-test-cases workflow for run: %s', payload.runId);
-    return workflowClient.trigger({ body: payload, url });
+    return workflowClient.trigger({
+      body: payload,
+      flowControl: { key: 'agent-eval-run.paginate-test-cases', parallelism: 200, rate: 5 },
+      url,
+    });
   }
 
   /**
@@ -163,7 +171,15 @@ export class AgentEvalRunWorkflow {
       payload.runId,
       payload.testCaseId,
     );
-    return workflowClient.trigger({ body: payload, url });
+    return workflowClient.trigger({
+      body: payload,
+      flowControl: {
+        key: 'agent-eval-run.execute-test-case',
+        parallelism: 200,
+        ratePerSecond: 5,
+      },
+      url,
+    });
   }
 
   /**
@@ -176,7 +192,15 @@ export class AgentEvalRunWorkflow {
       payload.runId,
       payload.testCaseId,
     );
-    return workflowClient.trigger({ body: payload, url });
+    return workflowClient.trigger({
+      body: payload,
+      flowControl: {
+        key: 'agent-eval-run.run-agent-trajectory',
+        parallelism: 500,
+        ratePerSecond: 20,
+      },
+      url,
+    });
   }
 
   /**
@@ -189,7 +213,15 @@ export class AgentEvalRunWorkflow {
       payload.runId,
       payload.testCaseId,
     );
-    return workflowClient.trigger({ body: payload, url });
+    return workflowClient.trigger({
+      body: payload,
+      flowControl: {
+        key: 'agent-eval-run.resume-agent-trajectory',
+        parallelism: 500,
+        ratePerSecond: 20,
+      },
+      url,
+    });
   }
 
   /**
@@ -203,7 +235,15 @@ export class AgentEvalRunWorkflow {
       payload.testCaseId,
       payload.threadId,
     );
-    return workflowClient.trigger({ body: payload, url });
+    return workflowClient.trigger({
+      body: payload,
+      flowControl: {
+        key: 'agent-eval-run.run-thread-trajectory',
+        parallelism: 500,
+        ratePerSecond: 20,
+      },
+      url,
+    });
   }
 
   /**
@@ -217,7 +257,15 @@ export class AgentEvalRunWorkflow {
       payload.testCaseId,
       payload.threadId,
     );
-    return workflowClient.trigger({ body: payload, url });
+    return workflowClient.trigger({
+      body: payload,
+      flowControl: {
+        key: 'agent-eval-run.resume-thread-trajectory',
+        parallelism: 500,
+        ratePerSecond: 20,
+      },
+      url,
+    });
   }
 
   /**
@@ -226,7 +274,11 @@ export class AgentEvalRunWorkflow {
   static triggerFinalizeRun(payload: FinalizeRunPayload) {
     const url = getWorkflowUrl(WORKFLOW_PATHS.finalizeRun);
     log('Triggering finalize-run workflow for run: %s', payload.runId);
-    return workflowClient.trigger({ body: payload, url });
+    return workflowClient.trigger({
+      body: payload,
+      flowControl: { key: 'agent-eval-run.finalize-run', parallelism: 10, rate: 1 },
+      url,
+    });
   }
 
   /**

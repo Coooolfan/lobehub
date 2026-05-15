@@ -109,11 +109,6 @@ export const { POST } = serve<RunAgentTrajectoryPayload>(
     };
   },
   {
-    flowControl: {
-      key: 'agent-eval-run.run-agent-trajectory',
-      parallelism: 500,
-      ratePerSecond: 20,
-    },
     qstashClient,
   },
 );

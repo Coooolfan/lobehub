@@ -163,7 +163,6 @@ export const { POST } = serve<PaginateTestCasesPayload>(
     };
   },
   {
-    flowControl: { key: 'agent-eval-run.paginate-test-cases', parallelism: 200, rate: 5 },
     qstashClient,
   },
 );

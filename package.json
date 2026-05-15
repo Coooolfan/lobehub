@@ -304,7 +304,7 @@
     "@trpc/react-query": "^11.8.1",
     "@trpc/server": "^11.8.1",
     "@upstash/qstash": "^2.8.4",
-    "@upstash/workflow": "^0.2.23",
+    "@upstash/workflow": "^1.2.1",
     "@vercel/analytics": "^1.6.1",
     "@vercel/edge-config": "^1.4.3",
     "@vercel/functions": "^3.3.6",

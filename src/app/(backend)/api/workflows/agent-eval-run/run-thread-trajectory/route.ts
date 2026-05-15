@@ -95,11 +95,6 @@ export const { POST } = serve<RunThreadTrajectoryPayload>(
     return { success: true, testCaseId, threadId, topicId };
   },
   {
-    flowControl: {
-      key: 'agent-eval-run.run-thread-trajectory',
-      parallelism: 500,
-      ratePerSecond: 20,
-    },
     qstashClient,
   },
 );
