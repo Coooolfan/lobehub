@@ -1,0 +1,85 @@
+name: Fork Docker Build (GHCR)
+
+# Only runs on this fork (not upstream — upstream uses release-docker.yml /
+# pr-build-docker.yml with its own Docker Hub secrets). Pushes amd64 image
+# to ghcr.io/<owner>/lobehub using the default GITHUB_TOKEN.
+
+on:
+  push:
+    branches:
+      - 'fix/**'
+      - 'feat/**'
+      - 'prod/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/lobehub
+
+jobs:
+  build:
+    name: Build linux/amd64 Image (GHCR)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate tag
+        id: meta_extra
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          sanitized_branch=$(echo "${BRANCH_NAME}" | sed -E 's/[^a-zA-Z0-9_.-]+/-/g')
+          commit_sha=$(git rev-parse --short HEAD)
+          echo "branch_tag=${sanitized_branch}" >> $GITHUB_OUTPUT
+          echo "sha_tag=${sanitized_branch}-${commit_sha}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${commit_sha}" >> $GITHUB_OUTPUT
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.meta_extra.outputs.branch_tag }}
+            type=raw,value=${{ steps.meta_extra.outputs.sha_tag }}
+
+      - name: GHCR login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SHA=${{ steps.meta_extra.outputs.commit_sha }}
+
+      - name: Image info
+        run: |
+          echo "### 🐳 Image pushed to GHCR" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pull:** \`docker pull ${{ env.REGISTRY_IMAGE }}:${{ steps.meta_extra.outputs.sha_tag }}\`" >> $GITHUB_STEP_SUMMARY
