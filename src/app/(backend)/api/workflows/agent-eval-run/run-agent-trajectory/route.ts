@@ -109,6 +109,7 @@ export const { POST } = serve<RunAgentTrajectoryPayload>(
     };
   },
   {
+    baseUrl: process.env.APP_URL,
     qstashClient,
   },
 );

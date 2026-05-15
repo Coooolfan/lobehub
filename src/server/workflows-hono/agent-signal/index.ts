@@ -15,6 +15,8 @@ app.post('/cron-hourly-nightly-self-review', qstashAuth(), scheduleNightlyReview
 app.post(
   '/run',
   serve<AgentSignalWorkflowRunPayload>((context) => runAgentSignalWorkflow(context), {
+    // NOTICE: see memory-user-memory/index.ts for why `baseUrl` is required since v1.x.
+    baseUrl: process.env.APP_URL,
     qstashClient: createWorkflowQstashClient(),
   }),
 );

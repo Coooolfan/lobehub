@@ -11,32 +11,38 @@ import { processUserTopicsHandler } from './workflows/processUserTopics';
 
 const app = new Hono();
 
+// NOTICE: `baseUrl` is required since @upstash/workflow v1.x — without it the SDK
+// derives the next-step callback URL from `request.url`, which inside the container
+// resolves to the bind address (0.0.0.0:PORT) and QStash refuses to publish there.
+const baseUrl = process.env.APP_URL;
+
 app.post(
   '/call-cron-hourly-analysis',
   serve(hourlyWorkflowHandler, {
     ...hourlyWorkflowOptions,
+    baseUrl,
     qstashClient: createWorkflowQstashClient(),
   }),
 );
 
 app.post(
   '/pipelines/persona/update-writing',
-  serve(personaUpdateHandler, { qstashClient: createWorkflowQstashClient() }),
+  serve(personaUpdateHandler, { baseUrl, qstashClient: createWorkflowQstashClient() }),
 );
 
 app.post(
   '/pipelines/chat-topic/process-users',
-  serve(processUsersHandler, { qstashClient: createWorkflowQstashClient() }),
+  serve(processUsersHandler, { baseUrl, qstashClient: createWorkflowQstashClient() }),
 );
 
 app.post(
   '/pipelines/chat-topic/process-user-topics',
-  serve(processUserTopicsHandler, { qstashClient: createWorkflowQstashClient() }),
+  serve(processUserTopicsHandler, { baseUrl, qstashClient: createWorkflowQstashClient() }),
 );
 
 app.post(
   '/pipelines/chat-topic/process-topics',
-  serve(processTopicsHandler, { qstashClient: createWorkflowQstashClient() }),
+  serve(processTopicsHandler, { baseUrl, qstashClient: createWorkflowQstashClient() }),
 );
 
 // NOTICE: Must use serveMany here. The `context.invoke(processTopicWorkflow)` call in
@@ -46,7 +52,7 @@ app.post(
   '/pipelines/chat-topic/process-topic',
   serveMany(
     { 'process-topic': processTopicWorkflow },
-    { qstashClient: createWorkflowQstashClient() },
+    { baseUrl, qstashClient: createWorkflowQstashClient() },
   ),
 );
 

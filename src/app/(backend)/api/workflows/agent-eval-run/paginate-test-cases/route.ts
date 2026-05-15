@@ -163,6 +163,7 @@ export const { POST } = serve<PaginateTestCasesPayload>(
     };
   },
   {
+    baseUrl: process.env.APP_URL,
     qstashClient,
   },
 );

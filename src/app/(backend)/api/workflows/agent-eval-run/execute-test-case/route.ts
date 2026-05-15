@@ -57,6 +57,7 @@ export const { POST } = serve<ExecuteTestCasePayload>(
     return { k, success: true, testCaseId };
   },
   {
+    baseUrl: process.env.APP_URL,
     qstashClient,
   },
 );

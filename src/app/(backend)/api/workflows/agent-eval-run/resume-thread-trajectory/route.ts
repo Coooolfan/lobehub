@@ -45,6 +45,7 @@ export const { POST } = serve<ResumeThreadTrajectoryPayload>(
     return { success: true, testCaseId, threadId, topicId };
   },
   {
+    baseUrl: process.env.APP_URL,
     qstashClient,
   },
 );

@@ -125,6 +125,7 @@ export const { POST } = serve<RunBenchmarkPayload>(
     };
   },
   {
+    baseUrl: process.env.APP_URL,
     qstashClient,
   },
 );

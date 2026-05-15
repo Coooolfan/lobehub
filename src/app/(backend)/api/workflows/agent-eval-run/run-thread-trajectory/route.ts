@@ -95,6 +95,7 @@ export const { POST } = serve<RunThreadTrajectoryPayload>(
     return { success: true, testCaseId, threadId, topicId };
   },
   {
+    baseUrl: process.env.APP_URL,
     qstashClient,
   },
 );

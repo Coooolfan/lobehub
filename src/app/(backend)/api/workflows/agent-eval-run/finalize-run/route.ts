@@ -95,6 +95,7 @@ export const { POST } = serve<FinalizeRunPayload>(
     };
   },
   {
+    baseUrl: process.env.APP_URL,
     qstashClient,
   },
 );
