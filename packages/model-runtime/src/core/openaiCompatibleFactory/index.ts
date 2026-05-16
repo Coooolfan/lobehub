@@ -840,8 +840,8 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
             // call's arguments. Callers (e.g. BaseMemoryExtractor.structuredCall) feed
             // the result straight into `schema.parse(...)`, which expected an object.
             return JSON.parse(toolCalls[0].function.arguments);
-          } catch {
-            console.error('parse tool call arguments error:', toolCalls);
+          } catch (err) {
+            console.error('parse tool call arguments error:', err, toolCalls);
             return undefined;
           }
         }
@@ -1376,6 +1376,10 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
           tool_choice: 'required',
           tools,
           user: options?.user,
+          // Same DeepSeek-style provider quirks apply to this forced-tool path
+          // (see generateObject useToolsCalling branch). Persona writer hits this
+          // branch because it passes `tools` directly.
+          ...((generateObjectConfig?.extraPayload?.(payload) ?? {}) as Record<string, never>),
         },
         { headers: options?.headers, signal: options?.signal },
       );
