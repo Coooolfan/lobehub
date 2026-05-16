@@ -182,6 +182,13 @@ export interface OpenAICompatibleFactoryOptions<T extends Record<string, any> = 
   };
   generateObject?: {
     /**
+     * Extra payload merged into the `useToolsCalling` request body.
+     * Use this for provider quirks that only surface on forced `tool_choice`
+     * (e.g. DeepSeek v4 rejects forced tool_choice while thinking is enabled,
+     * so we inject `{ thinking: { type: 'disabled' } }` here).
+     */
+    extraPayload?: (payload: GenerateObjectPayload) => Record<string, unknown>;
+    /**
      * Transform schema before sending to the provider (e.g., filter unsupported properties)
      */
     handleSchema?: (schema: any) => any;
@@ -813,6 +820,9 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
               tool_choice: { function: { name: tool.function.name }, type: 'function' },
               tools: [tool],
               user: options?.user,
+              // Spread provider-specific extras (e.g. DeepSeek `thinking`) that aren't
+              // in OpenAI's typed CreateParams. Cast scoped to the spread.
+              ...((generateObjectConfig.extraPayload?.(payload) ?? {}) as Record<string, never>),
             },
             { headers: options?.headers, signal: options?.signal },
           );

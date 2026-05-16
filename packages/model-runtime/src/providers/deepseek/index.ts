@@ -263,6 +263,12 @@ export const openAIParams = {
   // Deepseek don't support json format well
   // use Tools calling to simulate
   generateObject: {
+    // v4 models auto-enable thinking, but DeepSeek rejects forced `tool_choice`
+    // while thinking is on with "deepseek-reasoner does not support this
+    // tool_choice". useToolsCalling always forces tool_choice, so explicitly
+    // disable thinking on this path. Regular chat (auto tool_choice) keeps
+    // thinking + tools both working.
+    extraPayload: () => ({ thinking: { type: 'disabled' } }),
     useToolsCalling: true,
   },
   models: fetchDeepSeekModels,
