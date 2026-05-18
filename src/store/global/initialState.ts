@@ -23,8 +23,6 @@ export enum SidebarTabKey {
 
 export enum ChatSettingsTabs {
   Chat = 'chat',
-  Documents = 'documents',
-  Meta = 'meta',
   Modal = 'modal',
   Opening = 'opening',
   Plugin = 'plugin',
@@ -372,7 +370,7 @@ export const INITIAL_STATUS = {
   showImageTopicPanel: true,
   showLeftPanel: true,
   showPageAgentPanel: true,
-  showRightPanel: true,
+  showRightPanel: false,
   showSystemRole: false,
   showTaskAgentPanel: false,
   showVideoPanel: true,
