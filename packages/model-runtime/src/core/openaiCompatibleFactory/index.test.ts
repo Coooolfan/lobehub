@@ -3184,6 +3184,7 @@ describe('LobeOpenAICompatibleFactory', () => {
 
         expect(consoleSpy).toHaveBeenCalledWith(
           'parse tool call arguments error:',
+          expect.any(SyntaxError),
           mockResponse.choices[0].message.tool_calls,
         );
         expect(result).toBeUndefined();

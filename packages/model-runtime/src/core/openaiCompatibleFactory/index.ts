@@ -831,7 +831,12 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
             await options?.onUsage?.(convertOpenAIUsage(res.usage, usagePayload));
           }
 
-          const toolCalls = res.choices[0].message.tool_calls!;
+          const toolCalls = res.choices[0].message.tool_calls;
+
+          if (!toolCalls?.[0]) {
+            console.error('parse tool call arguments error:', toolCalls);
+            return undefined;
+          }
 
           try {
             // NOTICE: the other generateObject paths (Responses API / Chat Completions
