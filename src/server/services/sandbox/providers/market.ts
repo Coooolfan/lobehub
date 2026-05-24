@@ -1,14 +1,16 @@
-import type {
-  SandboxCallToolResult,
-  SandboxExportFileResult,
-} from '@lobechat/builtin-tool-cloud-sandbox';
+import type { SandboxCallToolResult } from '@lobechat/builtin-tool-cloud-sandbox';
 import type { CodeInterpreterToolName } from '@lobehub/market-sdk';
 import debug from 'debug';
-import { sha256 } from 'js-sha256';
 
-import { FileS3 } from '@/server/modules/S3';
-
-import type { SandboxProvider, SandboxProviderCapabilities, SandboxServiceOptions } from '../types';
+import { SandboxMiddlewareService } from '../service';
+import type {
+  SandboxProvider,
+  SandboxProviderCapabilities,
+  SandboxProviderFileExportRequest,
+  SandboxProviderFileExportResult,
+  SandboxService,
+  SandboxServiceOptions,
+} from '../types';
 
 const log = debug('lobe-server:sandbox:market');
 
@@ -20,6 +22,7 @@ export class MarketSandboxProvider implements SandboxProvider {
     languages: ['python', 'javascript', 'typescript'],
     persistentSession: true,
     shell: true,
+    skillScripts: true,
   } as const satisfies SandboxProviderCapabilities;
 
   readonly kind = 'market';
@@ -36,7 +39,12 @@ export class MarketSandboxProvider implements SandboxProvider {
   ): Promise<SandboxCallToolResult> {
     const { marketService, topicId, userId } = this.options;
 
-    log('Calling sandbox tool: %s with params: %O, topicId: %s', toolName, params, topicId);
+    log(
+      'Calling sandbox tool: %s with params: %O, topicId: %s',
+      toolName,
+      redactSandboxParams(params),
+      topicId,
+    );
 
     try {
       const response = await marketService
@@ -80,26 +88,13 @@ export class MarketSandboxProvider implements SandboxProvider {
     }
   }
 
-  async exportAndUploadFile(path: string, filename: string): Promise<SandboxExportFileResult> {
-    const { fileService, marketService, topicId, userId } = this.options;
-
-    if (!fileService) {
-      return {
-        error: { message: 'fileService is required for sandbox file export' },
-        filename,
-        success: false,
-      };
-    }
-
-    log('Exporting file: %s from path: %s, topicId: %s', filename, path, topicId);
+  async exportFileToUploadUrl({
+    path,
+    uploadUrl,
+  }: SandboxProviderFileExportRequest): Promise<SandboxProviderFileExportResult> {
+    const { marketService, topicId, userId } = this.options;
 
     try {
-      const s3 = new FileS3();
-      const now = Date.now();
-      const today = new Date(now).toISOString().split('T')[0];
-      const key = `code-interpreter-exports/${today}/${topicId}/${filename}`;
-      const uploadUrl = await s3.createPreSignedUrl(key);
-
       const response = await marketService.exportFile({
         path,
         topicId,
@@ -112,7 +107,6 @@ export class MarketSandboxProvider implements SandboxProvider {
       if (!response.success) {
         return {
           error: { message: response.error?.message || 'Failed to export file from sandbox' },
-          filename,
           success: false,
         };
       }
@@ -123,43 +117,42 @@ export class MarketSandboxProvider implements SandboxProvider {
       if (!uploadSuccess) {
         return {
           error: { message: result?.error || 'Failed to upload file from sandbox' },
-          filename,
           success: false,
         };
       }
 
-      const metadata = await s3.getFileMetadata(key);
-      const fileSize = metadata.contentLength;
-      const mimeType = metadata.contentType || result?.mimeType || 'application/octet-stream';
-      const fileHash = sha256(key + now.toString());
-
-      const { fileId, url } = await fileService.createFileRecord({
-        fileHash,
-        fileType: mimeType,
-        name: filename,
-        size: fileSize,
-        url: key,
-      });
-
       return {
-        fileId,
-        filename,
-        mimeType,
-        size: fileSize,
+        mimeType: result?.mimeType,
+        result,
         success: true,
-        url,
       };
     } catch (error) {
       log('Error exporting file: %O', error);
 
       return {
         error: { message: (error as Error).message },
-        filename,
         success: false,
       };
     }
   }
 }
 
-/** @deprecated Use MarketSandboxProvider. */
-export class ServerSandboxService extends MarketSandboxProvider {}
+const redactSandboxParams = (params: Record<string, unknown>) => {
+  if (!params.skillZipUrls && !params.zipUrl) return params;
+
+  const redacted = {
+    ...params,
+  };
+
+  if (params.zipUrl) redacted.zipUrl = '[redacted]';
+  if (params.skillZipUrls) redacted.skillZipUrls = '[redacted]';
+
+  return redacted;
+};
+
+/** @deprecated Use createSandboxService. */
+export class ServerSandboxService extends SandboxMiddlewareService implements SandboxService {
+  constructor(options: SandboxServiceOptions) {
+    super(new MarketSandboxProvider(options), options);
+  }
+}

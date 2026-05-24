@@ -211,7 +211,7 @@ const execInSandboxHandler = async ({
         const fullUrl = await ctx.fileService.getFullFileUrl(fileInfo.url);
         if (fullUrl) {
           skillZipUrls[activatedSkill.name] = fullUrl;
-          log('Resolved zipUrl for skill %s: %s', activatedSkill.name, fullUrl);
+          log('Resolved zipUrl for skill %s', activatedSkill.name);
         }
       }
 

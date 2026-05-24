@@ -1,20 +1,24 @@
-import type {
-  SandboxCallToolResult,
-  SandboxExportFileResult,
-} from '@lobechat/builtin-tool-cloud-sandbox';
+import type { SandboxCallToolResult } from '@lobechat/builtin-tool-cloud-sandbox';
+import { isRecord } from '@lobechat/utils';
 import debug from 'debug';
 import { sha256 } from 'js-sha256';
 
 import { appEnv } from '@/envs/app';
-import { FileS3 } from '@/server/modules/S3';
 
-import type { SandboxProvider, SandboxProviderCapabilities, SandboxServiceOptions } from '../types';
+import type {
+  SandboxProvider,
+  SandboxProviderCapabilities,
+  SandboxProviderFileExportRequest,
+  SandboxProviderFileExportResult,
+  SandboxServiceOptions,
+} from '../types';
 
 const log = debug('lobe-server:sandbox:onlyboxes');
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_LEASE_TTL_SEC = 1800;
 const WRITE_FILE_CHUNK_BYTES = 48 * 1024;
+const SKILL_ARCHIVE_CACHE_DIR = '/tmp/lobe-skills';
 
 interface OnlyboxesTaskResponse {
   error?: { code?: string; message?: string };
@@ -42,6 +46,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     languages: ['python', 'javascript', 'typescript'],
     persistentSession: true,
     shell: true,
+    skillScripts: true,
   } as const satisfies SandboxProviderCapabilities;
 
   readonly kind = 'onlyboxes';
@@ -84,7 +89,15 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
           return this.executeCode(params);
         }
 
+        case 'execScript': {
+          return this.execScript(params);
+        }
+
         case 'listLocalFiles': {
+          return this.runJsonScript(listFilesScript, params);
+        }
+
+        case 'listFiles': {
           return this.runJsonScript(listFilesScript, params);
         }
 
@@ -92,7 +105,15 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
           return this.runJsonScript(readFileScript, params);
         }
 
+        case 'readFile': {
+          return this.runJsonScript(readFileScript, params);
+        }
+
         case 'writeLocalFile': {
+          return this.writeLocalFile(params);
+        }
+
+        case 'writeFile': {
           return this.writeLocalFile(params);
         }
 
@@ -100,11 +121,23 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
           return this.runJsonScript(editFileScript, params);
         }
 
+        case 'editFile': {
+          return this.runJsonScript(editFileScript, params);
+        }
+
         case 'searchLocalFiles': {
           return this.runJsonScript(searchFilesScript, params);
         }
 
+        case 'searchFiles': {
+          return this.runJsonScript(searchFilesScript, params);
+        }
+
         case 'moveLocalFiles': {
+          return this.runJsonScript(moveFilesScript, params);
+        }
+
+        case 'moveFiles': {
           return this.runJsonScript(moveFilesScript, params);
         }
 
@@ -113,6 +146,10 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
         }
 
         case 'globLocalFiles': {
+          return this.runJsonScript(globFilesScript, params);
+        }
+
+        case 'globFiles': {
           return this.runJsonScript(globFilesScript, params);
         }
 
@@ -126,33 +163,19 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     }
   }
 
-  async exportAndUploadFile(path: string, filename: string): Promise<SandboxExportFileResult> {
-    const { fileService, topicId } = this.options;
-
+  async exportFileToUploadUrl({
+    path,
+    uploadUrl,
+  }: SandboxProviderFileExportRequest): Promise<SandboxProviderFileExportResult> {
     if (!this.baseUrl || !this.token) {
       return {
         error: { message: 'ONLYBOXES_BASE_URL and ONLYBOXES_API_TOKEN are required' },
-        filename,
-        success: false,
-      };
-    }
-
-    if (!fileService) {
-      return {
-        error: { message: 'fileService is required for sandbox file export' },
-        filename,
         success: false,
       };
     }
 
     try {
       await this.ensureSession();
-
-      const s3 = new FileS3();
-      const now = Date.now();
-      const today = new Date(now).toISOString().split('T')[0];
-      const key = `code-interpreter-exports/${today}/${topicId}/${filename}`;
-      const uploadUrl = await s3.createPreSignedUrl(key);
 
       const task = await this.submitTask('terminalResource', {
         action: 'export',
@@ -164,38 +187,20 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
       if (task.status !== 'succeeded') {
         return {
           error: { message: task.error?.message || 'Failed to export file from Onlyboxes sandbox' },
-          filename,
           success: false,
         };
       }
 
-      const metadata = await s3.getFileMetadata(key);
-      const fileSize = metadata.contentLength;
-      const mimeType =
-        metadata.contentType || String(task.result?.mime_type || 'application/octet-stream');
-      const fileHash = sha256(key + now.toString());
-
-      const { fileId, url } = await fileService.createFileRecord({
-        fileHash,
-        fileType: mimeType,
-        name: filename,
-        size: fileSize,
-        url: key,
-      });
-
       return {
-        fileId,
-        filename,
-        mimeType,
-        size: fileSize,
+        mimeType: String(task.result?.mime_type || ''),
+        result: task.result,
+        size: typeof task.result?.size_bytes === 'number' ? task.result.size_bytes : undefined,
         success: true,
-        url,
       };
     } catch (error) {
       log('Onlyboxes export failed: %O', error);
       return {
         error: { message: (error as Error).message },
-        filename,
         success: false,
       };
     }
@@ -252,6 +257,58 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     };
   }
 
+  private async execScript(params: Record<string, unknown>): Promise<SandboxCallToolResult> {
+    const command = String(params.command || '');
+
+    if (!command.trim()) {
+      return this.errorResult('command is required');
+    }
+
+    const skillZipUrls = this.resolveExecScriptZipUrls(params);
+    const timeoutMs = this.timeout(params);
+
+    if (Object.keys(skillZipUrls).length === 0) {
+      return this.runCommand({ command, timeout: timeoutMs });
+    }
+
+    const defaultSkillName = this.resolveExecScriptSkillName(params, skillZipUrls);
+    const workspaceDir = this.skillWorkspaceDir(skillZipUrls);
+    const setupCommand = this.buildSkillSetupCommand({ skillZipUrls, workspaceDir });
+    const setup = await this.execTerminal(setupCommand, timeoutMs);
+
+    if (setup.exit_code !== 0) {
+      return {
+        error: { message: setup.stderr || setup.stdout || 'Failed to prepare skill resources' },
+        result: {
+          exitCode: setup.exit_code,
+          output: setup.stdout,
+          stderr: setup.stderr,
+        },
+        success: false,
+      };
+    }
+
+    const runDir = defaultSkillName
+      ? `${workspaceDir}/${this.safeSkillDirName(defaultSkillName)}`
+      : workspaceDir;
+    const result = await this.execTerminal(
+      `cd ${this.shellQuote(runDir)} && ${command}`,
+      timeoutMs,
+    );
+
+    return {
+      result: {
+        commandId: result.session_id,
+        exitCode: result.exit_code,
+        output: result.stdout,
+        stderr: result.stderr,
+        stdout: result.stdout,
+        success: result.exit_code === 0,
+      },
+      success: true,
+    };
+  }
+
   private async runCommand(params: Record<string, unknown>): Promise<SandboxCallToolResult> {
     const command = String(params.command || '');
 
@@ -299,6 +356,102 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
       },
       success: true,
     };
+  }
+
+  private resolveExecScriptZipUrls(params: Record<string, unknown>) {
+    const zipUrl = typeof params.zipUrl === 'string' ? params.zipUrl : undefined;
+    if (zipUrl) return { [this.resolveLegacyExecScriptSkillName(params)]: zipUrl };
+
+    if (!isRecord(params.skillZipUrls)) return {};
+
+    const result: Record<string, string> = {};
+
+    for (const [name, value] of Object.entries(params.skillZipUrls)) {
+      if (typeof value === 'string' && value) {
+        result[name] = value;
+      }
+    }
+
+    return result;
+  }
+
+  private resolveLegacyExecScriptSkillName(params: Record<string, unknown>) {
+    const configName = isRecord(params.config) ? params.config.name : undefined;
+    if (typeof configName === 'string' && configName) return configName;
+
+    if (Array.isArray(params.activatedSkills)) {
+      for (const skill of [...params.activatedSkills].reverse()) {
+        if (!isRecord(skill)) continue;
+
+        const name = typeof skill.name === 'string' ? skill.name : undefined;
+        if (name) return name;
+      }
+    }
+
+    return 'default';
+  }
+
+  private resolveExecScriptSkillName(
+    params: Record<string, unknown>,
+    skillZipUrls: Record<string, string>,
+  ) {
+    const configName = isRecord(params.config) ? params.config.name : undefined;
+    if (typeof configName === 'string' && skillZipUrls[configName]) return configName;
+
+    if (Array.isArray(params.activatedSkills)) {
+      for (const skill of [...params.activatedSkills].reverse()) {
+        if (!isRecord(skill)) continue;
+
+        const name = typeof skill.name === 'string' ? skill.name : undefined;
+        if (name && skillZipUrls[name]) return name;
+      }
+    }
+
+    const [firstName] = Object.keys(skillZipUrls);
+    return firstName;
+  }
+
+  private skillWorkspaceDir(skillZipUrls: Record<string, string>) {
+    const entries = Object.entries(skillZipUrls).sort(([left], [right]) =>
+      left.localeCompare(right),
+    );
+    const cacheKey = sha256(JSON.stringify(entries)).slice(0, 32);
+    return `${SKILL_ARCHIVE_CACHE_DIR}/${cacheKey || 'default'}`;
+  }
+
+  private buildSkillSetupCommand({
+    skillZipUrls,
+    workspaceDir,
+  }: {
+    skillZipUrls: Record<string, string>;
+    workspaceDir: string;
+  }) {
+    const quotedWorkspaceDir = this.shellQuote(workspaceDir);
+    const setupCommands = Object.entries(skillZipUrls).map(([name, zipUrl]) => {
+      const skillDir = `${workspaceDir}/${this.safeSkillDirName(name)}`;
+      const markerPath = `${skillDir}/.prepared`;
+      const archivePath = `${skillDir}/skill.zip`;
+      const quotedArchivePath = this.shellQuote(archivePath);
+      const quotedDir = this.shellQuote(skillDir);
+      const quotedMarkerPath = this.shellQuote(markerPath);
+      const quotedUrl = this.shellQuote(zipUrl);
+
+      return `if [ ! -f ${quotedMarkerPath} ]; then rm -rf ${quotedDir} && mkdir -p ${quotedDir} && curl -fsSL ${quotedUrl} -o ${quotedArchivePath} && unzip -q ${quotedArchivePath} -d ${quotedDir} && printf prepared > ${quotedMarkerPath}; fi`;
+    });
+
+    return [
+      `mkdir -p ${this.shellQuote(SKILL_ARCHIVE_CACHE_DIR)}`,
+      `mkdir -p ${quotedWorkspaceDir}`,
+      ...setupCommands,
+    ].join(' && ');
+  }
+
+  private safeSkillDirName(name: string) {
+    return name.replaceAll(/[^\w.-]/g, '-');
+  }
+
+  private shellQuote(value: string) {
+    return `'${value.replaceAll("'", "'\\''")}'`;
   }
 
   private async writeLocalFile(params: Record<string, unknown>): Promise<SandboxCallToolResult> {

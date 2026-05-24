@@ -28,6 +28,7 @@ describe('sandbox service factory', () => {
       files: true,
       persistentSession: true,
       shell: true,
+      skillScripts: true,
     });
   });
 

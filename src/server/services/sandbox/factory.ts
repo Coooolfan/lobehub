@@ -2,13 +2,19 @@ import { appEnv } from '@/envs/app';
 
 import { MarketSandboxProvider } from './providers/market';
 import { OnlyboxesSandboxProvider } from './providers/onlyboxes';
-import type { SandboxProvider, SandboxProviderKind, SandboxServiceOptions } from './types';
+import { SandboxMiddlewareService } from './service';
+import type {
+  SandboxProvider,
+  SandboxProviderKind,
+  SandboxService,
+  SandboxServiceOptions,
+} from './types';
 
 export const getSandboxProviderKind = (): SandboxProviderKind => {
   return appEnv.SANDBOX_PROVIDER || 'market';
 };
 
-export const createSandboxService = (options: SandboxServiceOptions): SandboxProvider => {
+const createSandboxProvider = (options: SandboxServiceOptions): SandboxProvider => {
   switch (getSandboxProviderKind()) {
     case 'onlyboxes': {
       return new OnlyboxesSandboxProvider(options);
@@ -18,4 +24,8 @@ export const createSandboxService = (options: SandboxServiceOptions): SandboxPro
       return new MarketSandboxProvider(options);
     }
   }
+};
+
+export const createSandboxService = (options: SandboxServiceOptions): SandboxService => {
+  return new SandboxMiddlewareService(createSandboxProvider(options), options);
 };

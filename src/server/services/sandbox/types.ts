@@ -25,13 +25,45 @@ export interface SandboxProviderCapabilities {
   languages: string[];
   persistentSession: boolean;
   shell: boolean;
+  skillScripts: boolean;
 }
 
-export interface SandboxProvider extends ISandboxService {
+export interface SandboxProvider extends Pick<ISandboxService, 'callTool'> {
+  readonly capabilities: SandboxProviderCapabilities;
+
+  exportFileToUploadUrl: (
+    request: SandboxProviderFileExportRequest,
+  ) => Promise<SandboxProviderFileExportResult>;
+
+  readonly kind: SandboxProviderKind;
+}
+
+export interface SandboxService extends ISandboxService {
   readonly capabilities: SandboxProviderCapabilities;
   readonly kind: SandboxProviderKind;
 }
 
 export interface SandboxFileExporter {
   exportAndUploadFile: (path: string, filename: string) => Promise<SandboxExportFileResult>;
+}
+
+export interface SandboxProviderFileExportRequest {
+  filename: string;
+  path: string;
+  uploadUrl: string;
+}
+
+export interface SandboxProviderFileExportResult {
+  error?: { message: string };
+  mimeType?: string;
+  result?: Record<string, unknown>;
+  size?: number;
+  success: boolean;
+}
+
+export interface SandboxCommandResult {
+  exitCode: number;
+  output: string;
+  stderr?: string;
+  success: boolean;
 }
