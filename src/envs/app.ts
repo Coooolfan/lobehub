@@ -75,6 +75,11 @@ export const getAppConfig = () => {
        */
       MARKET_TRUSTED_CLIENT_ID: z.string().optional(),
 
+      SANDBOX_PROVIDER: z.enum(['market', 'onlyboxes']).optional(),
+      ONLYBOXES_BASE_URL: z.string().url().optional(),
+      ONLYBOXES_API_TOKEN: z.string().optional(),
+      ONLYBOXES_LEASE_TTL_SEC: z.number().optional(),
+
       AGENT_GATEWAY_SERVICE_TOKEN: z.string().optional(),
       AGENT_GATEWAY_URL: z.string().url().optional(),
       /**
@@ -119,6 +124,13 @@ export const getAppConfig = () => {
 
       MARKET_TRUSTED_CLIENT_SECRET: process.env.MARKET_TRUSTED_CLIENT_SECRET,
       MARKET_TRUSTED_CLIENT_ID: process.env.MARKET_TRUSTED_CLIENT_ID,
+
+      SANDBOX_PROVIDER: process.env.SANDBOX_PROVIDER,
+      ONLYBOXES_BASE_URL: process.env.ONLYBOXES_BASE_URL,
+      ONLYBOXES_API_TOKEN: process.env.ONLYBOXES_API_TOKEN,
+      ONLYBOXES_LEASE_TTL_SEC: process.env.ONLYBOXES_LEASE_TTL_SEC
+        ? Number(process.env.ONLYBOXES_LEASE_TTL_SEC)
+        : undefined,
 
       AGENT_GATEWAY_SERVICE_TOKEN: process.env.AGENT_GATEWAY_SERVICE_TOKEN,
       AGENT_GATEWAY_URL: process.env.AGENT_GATEWAY_URL,

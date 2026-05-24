@@ -1,0 +1,72 @@
+---
+title: Configuring Cloud Sandbox
+description: Configure the built-in Cloud Sandbox provider, including Market and self-hosted Onlyboxes.
+tags:
+  - Cloud Sandbox
+  - Onlyboxes
+  - Self-hosting
+---
+
+# Configuring Cloud Sandbox
+
+Cloud Sandbox powers the built-in code execution, shell command, file operation, and file export tools. By default, LobeHub uses the Market sandbox. Self-hosted deployments can switch the same tool surface to an Onlyboxes-compatible sandbox provider.
+
+## Core Environment Variables
+
+### `SANDBOX_PROVIDER`
+
+- Type: Optional
+- Description: Selects the server-side sandbox provider.
+- Default: `market`
+- Example: `onlyboxes`
+
+Supported values:
+
+- `market`: Use the existing Market sandbox.
+- `onlyboxes`: Use an Onlyboxes-compatible self-hosted sandbox console.
+
+### `ONLYBOXES_BASE_URL`
+
+- Type: Required when `SANDBOX_PROVIDER=onlyboxes`
+- Description: Base URL of the Onlyboxes console API. Do not include `/api/v1`.
+- Default: -
+- Example: `https://onlyboxes.example.com`
+
+### `ONLYBOXES_API_TOKEN`
+
+- Type: Required when `SANDBOX_PROVIDER=onlyboxes`
+- Description: Bearer token used to call the Onlyboxes console API.
+- Default: -
+- Example: `obx_xxxxxxxxxxxxxxxxxxxxx`
+
+### `ONLYBOXES_LEASE_TTL_SEC`
+
+- Type: Optional
+- Description: Lease duration for persistent terminal sessions created by the Cloud Sandbox provider.
+- Default: `1800`
+- Example: `3600`
+
+## Onlyboxes Runtime Requirements
+
+The configured Onlyboxes worker should expose `terminalExec` and `terminalResource`. LobeHub uses `terminalExec` as the compatibility layer for shell commands, code execution, and file operations, and uses `terminalResource` for file export through a pre-signed upload URL.
+
+For feature parity with the Market sandbox, the terminal runtime image should include:
+
+- `python3`, used by file operation wrappers and Python execution
+- `node`, used by JavaScript execution
+- `npx` with access to `tsx`, used by TypeScript execution
+- Standard shell utilities such as `base64`, `find`, and `grep`
+
+Configuration example:
+
+```bash
+SANDBOX_PROVIDER=onlyboxes
+ONLYBOXES_BASE_URL=https://onlyboxes.example.com
+ONLYBOXES_API_TOKEN=obx_xxxxxxxxxxxxxxxxxxxxx
+ONLYBOXES_LEASE_TTL_SEC=1800
+```
+
+<Callout type={'info'}>
+  File export still writes the exported artifact to the configured LobeHub S3 storage. Configure the
+  S3 environment variables when users need to download files generated inside the sandbox.
+</Callout>
