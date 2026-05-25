@@ -263,6 +263,7 @@ describe('OnlyboxesSandboxProvider', () => {
     const result = await provider.exportFileToUploadUrl({
       filename: 'report.txt',
       path: '/workspace/report.txt',
+      uploadHeaders: { 'x-amz-acl': 'public-read' },
       uploadUrl: 'https://uploads.example.com/put',
     });
 
@@ -284,6 +285,7 @@ describe('OnlyboxesSandboxProvider', () => {
           input: {
             action: 'export',
             file_path: '/workspace/report.txt',
+            headers: { 'x-amz-acl': 'public-read' },
             session_id: 'lobe-user-1-topic-1',
             signed_url: 'https://uploads.example.com/put',
           },

@@ -1,3 +1,8 @@
+export interface PreSignedUpload {
+  headers?: Record<string, string>;
+  url: string;
+}
+
 /**
  * File service implementation interface
  */
@@ -6,6 +11,12 @@ export interface FileServiceImpl {
    * Create cached pre-signed preview URL
    */
   createCachedPreSignedUrlForPreview: (url?: string | null, expiresIn?: number) => Promise<string>;
+
+  /**
+   * Create pre-signed upload descriptor
+   */
+  createPreSignedUpload: (key: string) => Promise<PreSignedUpload>;
+
   /**
    * Create pre-signed upload URL
    */

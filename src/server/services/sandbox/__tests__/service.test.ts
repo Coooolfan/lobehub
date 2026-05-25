@@ -33,7 +33,10 @@ describe('SandboxMiddlewareService', () => {
     } satisfies SandboxProvider;
 
     const fileService = {
-      createPreSignedUrl: vi.fn(async () => 'https://uploads.example.com/put'),
+      createPreSignedUpload: vi.fn(async () => ({
+        headers: { 'x-amz-acl': 'public-read' },
+        url: 'https://uploads.example.com/put',
+      })),
       createFileRecord: vi.fn(async () => ({ fileId: 'file-1', url: '/f/file-1' })),
       getFileMetadata: vi.fn(async () => ({
         contentLength: 42,
@@ -61,6 +64,7 @@ describe('SandboxMiddlewareService', () => {
     expect(exportFileToUploadUrl).toHaveBeenCalledWith({
       filename: 'result.csv',
       path: '/workspace/result.csv',
+      uploadHeaders: { 'x-amz-acl': 'public-read' },
       uploadUrl: 'https://uploads.example.com/put',
     });
     expect(fileService.createFileRecord).toHaveBeenCalledWith(
@@ -97,7 +101,7 @@ describe('SandboxMiddlewareService', () => {
     const { SandboxMiddlewareService } = await import('../service');
     const fileService = {
       createFileRecord: vi.fn(),
-      createPreSignedUrl: vi.fn(async () => 'https://uploads.example.com/put'),
+      createPreSignedUpload: vi.fn(async () => ({ url: 'https://uploads.example.com/put' })),
       getFileMetadata: vi.fn(),
     } as unknown as FileService;
 

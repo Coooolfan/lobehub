@@ -49,12 +49,13 @@ export class SandboxMiddlewareService implements SandboxService {
       const now = Date.now();
       const today = new Date(now).toISOString().split('T')[0];
       const key = `code-interpreter-exports/${today}/${topicId}/${filename}`;
-      const uploadUrl = await fileService.createPreSignedUrl(key);
+      const upload = await fileService.createPreSignedUpload(key);
 
       const exported = await this.provider.exportFileToUploadUrl({
         filename,
         path,
-        uploadUrl,
+        uploadHeaders: upload.headers,
+        uploadUrl: upload.url,
       });
 
       if (!exported.success) {

@@ -165,6 +165,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
 
   async exportFileToUploadUrl({
     path,
+    uploadHeaders,
     uploadUrl,
   }: SandboxProviderFileExportRequest): Promise<SandboxProviderFileExportResult> {
     if (!this.baseUrl || !this.token) {
@@ -180,6 +181,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
       const task = await this.submitTask('terminalResource', {
         action: 'export',
         file_path: path,
+        headers: uploadHeaders,
         session_id: this.sessionId,
         signed_url: uploadUrl,
       });

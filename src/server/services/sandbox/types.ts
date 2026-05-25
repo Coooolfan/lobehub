@@ -50,6 +50,7 @@ export interface SandboxFileExporter {
 export interface SandboxProviderFileExportRequest {
   filename: string;
   path: string;
+  uploadHeaders?: Record<string, string>;
   uploadUrl: string;
 }
 
