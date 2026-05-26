@@ -1,7 +1,6 @@
+import type { ServiceResult } from '@lobechat/tool-runtime';
+import { ComputerRuntime } from '@lobechat/tool-runtime';
 import { describe, expect, it } from 'vitest';
-
-import { ComputerRuntime } from '../../../../../packages/tool-runtime/src/ComputerRuntime';
-import type { ServiceResult } from '../../../../../packages/tool-runtime/src/types';
 
 class TestComputerRuntime extends ComputerRuntime {
   constructor(private readonly serviceResult: ServiceResult) {
