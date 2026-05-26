@@ -92,7 +92,7 @@ describe('SandboxMiddlewareService', () => {
       },
       callTool: vi.fn(),
       exportFileToUploadUrl: vi.fn(async () => ({
-        error: { message: 'no such file' },
+        error: { message: 'no such file', name: 'not_found' },
         success: false,
       })),
       kind: 'onlyboxes',
@@ -115,7 +115,7 @@ describe('SandboxMiddlewareService', () => {
     const result = await service.exportAndUploadFile('/workspace/missing.txt', 'missing.txt');
 
     expect(result).toMatchObject({
-      error: { message: 'no such file' },
+      error: { message: 'no such file', name: 'not_found' },
       filename: 'missing.txt',
       success: false,
     });

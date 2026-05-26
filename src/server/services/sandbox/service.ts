@@ -62,6 +62,7 @@ export class SandboxMiddlewareService implements SandboxService {
         return {
           error: {
             message: exported.error?.message || 'Failed to export file from sandbox',
+            name: exported.error?.name,
           },
           filename,
           success: false,

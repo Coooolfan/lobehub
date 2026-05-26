@@ -106,7 +106,10 @@ export class MarketSandboxProvider implements SandboxProvider {
 
       if (!response.success) {
         return {
-          error: { message: response.error?.message || 'Failed to export file from sandbox' },
+          error: {
+            message: response.error?.message || 'Failed to export file from sandbox',
+            name: response.error?.code,
+          },
           success: false,
         };
       }

@@ -210,6 +210,12 @@ ENV NEXT_PUBLIC_S3_DOMAIN="" \
     S3_ENABLE_PATH_STYLE="" \
     S3_SET_ACL=""
 
+# Cloud Sandbox
+ENV SANDBOX_PROVIDER="" \
+    ONLYBOXES_BASE_URL="" \
+    ONLYBOXES_API_TOKEN="" \
+    ONLYBOXES_LEASE_TTL_SEC=""
+
 # Model Variables
 ENV \
     # AI21

@@ -14,7 +14,7 @@ export interface SandboxCallToolResult {
  * Result of exporting and uploading a file from sandbox
  */
 export interface SandboxExportFileResult {
-  error?: { message: string };
+  error?: { message: string; name?: string };
   fileId?: string;
   filename: string;
   mimeType?: string;
