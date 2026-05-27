@@ -81,6 +81,45 @@ describe('getServerConfig', () => {
       expect(config.INTERNAL_APP_URL).toBe('http://127.0.0.1:3210');
     });
   });
+
+  describe('cloud sandbox env', () => {
+    beforeEach(() => {
+      delete process.env.SANDBOX_PROVIDER;
+      delete process.env.ONLYBOXES_BASE_URL;
+      delete process.env.ONLYBOXES_API_TOKEN;
+      delete process.env.ONLYBOXES_LEASE_TTL_SEC;
+    });
+
+    it('should treat docker empty string defaults as unset optional values', async () => {
+      process.env.SANDBOX_PROVIDER = '';
+      process.env.ONLYBOXES_BASE_URL = '';
+      process.env.ONLYBOXES_API_TOKEN = '';
+      process.env.ONLYBOXES_LEASE_TTL_SEC = '';
+
+      const { getAppConfig } = await import('../app');
+      const config = getAppConfig();
+
+      expect(config.SANDBOX_PROVIDER).toBeUndefined();
+      expect(config.ONLYBOXES_BASE_URL).toBeUndefined();
+      expect(config.ONLYBOXES_API_TOKEN).toBeUndefined();
+      expect(config.ONLYBOXES_LEASE_TTL_SEC).toBeUndefined();
+    });
+
+    it('should parse configured sandbox values', async () => {
+      process.env.SANDBOX_PROVIDER = 'onlyboxes';
+      process.env.ONLYBOXES_BASE_URL = 'https://onlyboxes.example.com';
+      process.env.ONLYBOXES_API_TOKEN = 'obx-token';
+      process.env.ONLYBOXES_LEASE_TTL_SEC = '3600';
+
+      const { getAppConfig } = await import('../app');
+      const config = getAppConfig();
+
+      expect(config.SANDBOX_PROVIDER).toBe('onlyboxes');
+      expect(config.ONLYBOXES_BASE_URL).toBe('https://onlyboxes.example.com');
+      expect(config.ONLYBOXES_API_TOKEN).toBe('obx-token');
+      expect(config.ONLYBOXES_LEASE_TTL_SEC).toBe(3600);
+    });
+  });
 });
 
 describe('APP_URL fallback', () => {

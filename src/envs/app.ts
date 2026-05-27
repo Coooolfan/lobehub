@@ -33,6 +33,8 @@ const ASSISTANT_INDEX_URL = 'https://registry.npmmirror.com/@lobehub/agents-inde
 
 const PLUGINS_INDEX_URL = 'https://registry.npmmirror.com/@lobehub/plugins-index/v1/files/public';
 
+const emptyStringToUndefined = (value: unknown) => (value === '' ? undefined : value);
+
 export const getAppConfig = () => {
   return createEnv({
     clientPrefix: 'NEXT_PUBLIC_',
@@ -75,10 +77,13 @@ export const getAppConfig = () => {
        */
       MARKET_TRUSTED_CLIENT_ID: z.string().optional(),
 
-      SANDBOX_PROVIDER: z.enum(['market', 'onlyboxes']).optional(),
-      ONLYBOXES_BASE_URL: z.string().url().optional(),
-      ONLYBOXES_API_TOKEN: z.string().optional(),
-      ONLYBOXES_LEASE_TTL_SEC: z.number().optional(),
+      SANDBOX_PROVIDER: z.preprocess(
+        emptyStringToUndefined,
+        z.enum(['market', 'onlyboxes']).optional(),
+      ),
+      ONLYBOXES_BASE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
+      ONLYBOXES_API_TOKEN: z.preprocess(emptyStringToUndefined, z.string().optional()),
+      ONLYBOXES_LEASE_TTL_SEC: z.preprocess(emptyStringToUndefined, z.coerce.number().optional()),
 
       AGENT_GATEWAY_SERVICE_TOKEN: z.string().optional(),
       AGENT_GATEWAY_URL: z.string().url().optional(),
@@ -128,9 +133,7 @@ export const getAppConfig = () => {
       SANDBOX_PROVIDER: process.env.SANDBOX_PROVIDER,
       ONLYBOXES_BASE_URL: process.env.ONLYBOXES_BASE_URL,
       ONLYBOXES_API_TOKEN: process.env.ONLYBOXES_API_TOKEN,
-      ONLYBOXES_LEASE_TTL_SEC: process.env.ONLYBOXES_LEASE_TTL_SEC
-        ? Number(process.env.ONLYBOXES_LEASE_TTL_SEC)
-        : undefined,
+      ONLYBOXES_LEASE_TTL_SEC: process.env.ONLYBOXES_LEASE_TTL_SEC,
 
       AGENT_GATEWAY_SERVICE_TOKEN: process.env.AGENT_GATEWAY_SERVICE_TOKEN,
       AGENT_GATEWAY_URL: process.env.AGENT_GATEWAY_URL,
