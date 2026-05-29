@@ -13,6 +13,8 @@ import type {
 } from '../types';
 
 const log = debug('lobe-server:sandbox:market');
+const REDACTED_SANDBOX_PARAM = '[redacted]';
+const SANDBOX_AUTH_ENV_PATTERN = /\b(LOBEHUB_JWT|GITHUB_TOKEN)=("[^"]*"|'[^']*'|\S+)/g;
 
 export class MarketSandboxProvider implements SandboxProvider {
   readonly capabilities = {
@@ -140,15 +142,22 @@ export class MarketSandboxProvider implements SandboxProvider {
   }
 }
 
-const redactSandboxParams = (params: Record<string, unknown>) => {
-  if (!params.skillZipUrls && !params.zipUrl) return params;
+export const redactSandboxParams = (params: Record<string, unknown>) => {
+  const hasCommand = typeof params.command === 'string';
+  if (!params.skillZipUrls && !params.zipUrl && !hasCommand) return params;
 
   const redacted = {
     ...params,
   };
 
-  if (params.zipUrl) redacted.zipUrl = '[redacted]';
-  if (params.skillZipUrls) redacted.skillZipUrls = '[redacted]';
+  if (params.zipUrl) redacted.zipUrl = REDACTED_SANDBOX_PARAM;
+  if (params.skillZipUrls) redacted.skillZipUrls = REDACTED_SANDBOX_PARAM;
+  if (typeof params.command === 'string') {
+    redacted.command = params.command.replaceAll(
+      SANDBOX_AUTH_ENV_PATTERN,
+      (_, name: string) => `${name}=${REDACTED_SANDBOX_PARAM}`,
+    );
+  }
 
   return redacted;
 };

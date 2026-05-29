@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { MarketService } from '@/server/services/market';
 
-import { MarketSandboxProvider } from './market';
+import { MarketSandboxProvider, redactSandboxParams } from './market';
 
 describe('MarketSandboxProvider', () => {
   const createMarketService = (response: unknown) =>
@@ -159,6 +159,34 @@ describe('MarketSandboxProvider', () => {
         message: 'upload failed',
       },
       success: false,
+    });
+  });
+
+  describe('redactSandboxParams', () => {
+    it('redacts auth env assignments from command logs without changing other params', () => {
+      const params = {
+        command:
+          'LOBEHUB_JWT=mock-jwt LOBEHUB_SERVER=https://app.lobehub.com npx -y @lobehub/cli topic list && GITHUB_TOKEN="ghp_token" gh repo view',
+        timeout: 1000,
+      };
+
+      expect(redactSandboxParams(params)).toEqual({
+        command:
+          'LOBEHUB_JWT=[redacted] LOBEHUB_SERVER=https://app.lobehub.com npx -y @lobehub/cli topic list && GITHUB_TOKEN=[redacted] gh repo view',
+        timeout: 1000,
+      });
+    });
+
+    it('redacts sandbox resource URLs from params', () => {
+      expect(
+        redactSandboxParams({
+          skillZipUrls: { chart: 'https://files.example.com/chart.zip' },
+          zipUrl: 'https://files.example.com/legacy.zip',
+        }),
+      ).toEqual({
+        skillZipUrls: '[redacted]',
+        zipUrl: '[redacted]',
+      });
     });
   });
 });
