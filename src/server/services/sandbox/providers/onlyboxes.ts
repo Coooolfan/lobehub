@@ -529,6 +529,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
 
     const running =
       task.status === 'running' || task.status === 'pending' || task.status === 'dispatched';
+    const success = running || task.status === 'succeeded';
     const result = task.result || {};
 
     return {
@@ -541,7 +542,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
         output: String(result.stdout || result.output || ''),
         running,
         stderr: String(result.stderr || ''),
-        success: task.status === 'succeeded',
+        success,
       },
       success: !task.error,
     };

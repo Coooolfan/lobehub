@@ -129,6 +129,42 @@ describe('OnlyboxesSandboxProvider', () => {
     });
   });
 
+  it('treats running background command polls as successful output retrievals', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            result: {
+              stdout: 'partial\n',
+            },
+            status: 'running',
+            task_id: 'task-1',
+          }),
+          { status: 200 },
+        );
+      }),
+    );
+
+    const { OnlyboxesSandboxProvider } = await import('./onlyboxes');
+    const provider = new OnlyboxesSandboxProvider({
+      marketService: {} as MarketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    const result = await provider.callTool('getCommandOutput', { commandId: 'task-1' });
+
+    expect(result).toMatchObject({
+      result: {
+        newOutput: 'partial\n',
+        running: true,
+        success: true,
+      },
+      success: true,
+    });
+  });
+
   it('unwraps JSON output from terminal-backed file operations', async () => {
     vi.stubGlobal(
       'fetch',

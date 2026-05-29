@@ -1,7 +1,6 @@
-export interface PreSignedUpload {
-  headers?: Record<string, string>;
-  url: string;
-}
+import type { PreSignedUpload } from '@/server/modules/S3';
+
+export type { PreSignedUpload };
 
 /**
  * File service implementation interface
