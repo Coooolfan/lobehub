@@ -1,18 +1,46 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHmac } from 'node:crypto';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { MarketService } from '@/server/services/market';
+
+const decodeJITPayload = (authorization?: string) => {
+  const token = authorization?.replace('Bearer ', '') || '';
+  const [payload] = token.replace('obx_jit_v1.', '').split('.');
+
+  return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+    exp: number;
+    iss: string;
+    sub: string;
+  };
+};
+
+const verifyJITSignature = (authorization?: string) => {
+  const token = authorization?.replace('Bearer ', '') || '';
+  const [signed, signature] = token.split(/\.(?=[^.]+$)/);
+  const expected = createHmac('sha256', 'jit-signing-key').update(signed).digest('base64url');
+
+  return signature === expected;
+};
 
 describe('OnlyboxesSandboxProvider', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
+    vi.setSystemTime(new Date('2026-05-30T00:00:00.000Z'));
     vi.doMock('@/envs/app', () => ({
       appEnv: {
-        ONLYBOXES_API_TOKEN: 'obx-token',
+        APP_URL: 'https://lobehub.example.com',
         ONLYBOXES_BASE_URL: 'https://onlyboxes.example.com/',
+        ONLYBOXES_JIT_SIGNING_KEY: 'jit-signing-key',
+        ONLYBOXES_JIT_TTL_SEC: 900,
         ONLYBOXES_LEASE_TTL_SEC: 120,
       },
     }));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('maps runCommand to the terminal command endpoint with a persistent session', async () => {
@@ -55,6 +83,16 @@ describe('OnlyboxesSandboxProvider', () => {
         method: 'POST',
       }),
     );
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const headers = init.headers as Headers;
+    const authorization = headers.get('Authorization') || undefined;
+    expect(authorization).toMatch(/^Bearer obx_jit_v1\./);
+    expect(verifyJITSignature(authorization)).toBe(true);
+    expect(decodeJITPayload(authorization)).toEqual({
+      exp: Date.parse('2026-05-30T00:15:00.000Z'),
+      iss: 'https://lobehub.example.com',
+      sub: 'user-1',
+    });
   });
 
   it('treats non-zero terminal exit codes as successful tool transport results', async () => {

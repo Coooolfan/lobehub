@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 import type { SandboxCallToolResult } from '@lobechat/builtin-tool-cloud-sandbox';
 import { isRecord } from '@lobechat/utils';
 import debug from 'debug';
@@ -17,6 +19,8 @@ const log = debug('lobe-server:sandbox:onlyboxes');
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_LEASE_TTL_SEC = 1800;
+const DEFAULT_JIT_TTL_SEC = 1800;
+const JIT_TOKEN_PREFIX = 'obx_jit_v1.';
 const WRITE_FILE_CHUNK_BYTES = 48 * 1024;
 const SKILL_ARCHIVE_CACHE_DIR = '/tmp/lobe-skills';
 
@@ -52,14 +56,18 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
   readonly kind = 'onlyboxes';
 
   private readonly baseUrl: string;
+  private readonly jitIssuer: string;
+  private readonly jitSigningKey: string;
+  private readonly jitTTLSec: number;
   private readonly leaseTTLSec: number;
   private readonly options: SandboxServiceOptions;
-  private readonly token: string;
 
   constructor(options: SandboxServiceOptions) {
     this.options = options;
     this.baseUrl = (appEnv.ONLYBOXES_BASE_URL || '').replace(/\/+$/, '');
-    this.token = appEnv.ONLYBOXES_API_TOKEN || '';
+    this.jitIssuer = appEnv.ONLYBOXES_JIT_ISSUER || appEnv.APP_URL || 'lobehub';
+    this.jitSigningKey = appEnv.ONLYBOXES_JIT_SIGNING_KEY || '';
+    this.jitTTLSec = appEnv.ONLYBOXES_JIT_TTL_SEC || DEFAULT_JIT_TTL_SEC;
     this.leaseTTLSec = appEnv.ONLYBOXES_LEASE_TTL_SEC || DEFAULT_LEASE_TTL_SEC;
   }
 
@@ -67,8 +75,8 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     toolName: string,
     params: Record<string, unknown>,
   ): Promise<SandboxCallToolResult> {
-    if (!this.baseUrl || !this.token) {
-      return this.errorResult('ONLYBOXES_BASE_URL and ONLYBOXES_API_TOKEN are required');
+    if (!this.baseUrl || !this.jitSigningKey) {
+      return this.errorResult('ONLYBOXES_BASE_URL and ONLYBOXES_JIT_SIGNING_KEY are required');
     }
 
     try {
@@ -168,9 +176,9 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     uploadHeaders,
     uploadUrl,
   }: SandboxProviderFileExportRequest): Promise<SandboxProviderFileExportResult> {
-    if (!this.baseUrl || !this.token) {
+    if (!this.baseUrl || !this.jitSigningKey) {
       return {
-        error: { message: 'ONLYBOXES_BASE_URL and ONLYBOXES_API_TOKEN are required' },
+        error: { message: 'ONLYBOXES_BASE_URL and ONLYBOXES_JIT_SIGNING_KEY are required' },
         success: false,
       };
     }
@@ -644,7 +652,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const headers = new Headers(init.headers);
-    headers.set('Authorization', `Bearer ${this.token}`);
+    headers.set('Authorization', `Bearer ${this.createJITToken()}`);
     headers.set('Content-Type', 'application/json');
 
     const response = await fetch(`${this.baseUrl}${path}`, {
@@ -665,6 +673,19 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     }
 
     return json as T;
+  }
+
+  private createJITToken(now = Date.now()) {
+    const claims = {
+      exp: now + this.jitTTLSec * 1000,
+      iss: this.jitIssuer,
+      sub: this.options.userId,
+    };
+    const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+    const signed = `${JIT_TOKEN_PREFIX}${payload}`;
+    const signature = createHmac('sha256', this.jitSigningKey).update(signed).digest('base64url');
+
+    return `${signed}.${signature}`;
   }
 
   private timeout(params: Record<string, unknown>) {

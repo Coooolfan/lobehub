@@ -82,7 +82,12 @@ export const getAppConfig = () => {
         z.enum(['market', 'onlyboxes']).optional(),
       ),
       ONLYBOXES_BASE_URL: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
-      ONLYBOXES_API_TOKEN: z.preprocess(emptyStringToUndefined, z.string().optional()),
+      ONLYBOXES_JIT_ISSUER: z.preprocess(emptyStringToUndefined, z.string().optional()),
+      ONLYBOXES_JIT_SIGNING_KEY: z.preprocess(emptyStringToUndefined, z.string().optional()),
+      ONLYBOXES_JIT_TTL_SEC: z.preprocess(
+        emptyStringToUndefined,
+        z.coerce.number().int().positive().optional(),
+      ),
       ONLYBOXES_LEASE_TTL_SEC: z.preprocess(emptyStringToUndefined, z.coerce.number().optional()),
 
       AGENT_GATEWAY_SERVICE_TOKEN: z.string().optional(),
@@ -132,7 +137,9 @@ export const getAppConfig = () => {
 
       SANDBOX_PROVIDER: process.env.SANDBOX_PROVIDER,
       ONLYBOXES_BASE_URL: process.env.ONLYBOXES_BASE_URL,
-      ONLYBOXES_API_TOKEN: process.env.ONLYBOXES_API_TOKEN,
+      ONLYBOXES_JIT_ISSUER: process.env.ONLYBOXES_JIT_ISSUER,
+      ONLYBOXES_JIT_SIGNING_KEY: process.env.ONLYBOXES_JIT_SIGNING_KEY,
+      ONLYBOXES_JIT_TTL_SEC: process.env.ONLYBOXES_JIT_TTL_SEC,
       ONLYBOXES_LEASE_TTL_SEC: process.env.ONLYBOXES_LEASE_TTL_SEC,
 
       AGENT_GATEWAY_SERVICE_TOKEN: process.env.AGENT_GATEWAY_SERVICE_TOKEN,

@@ -32,12 +32,26 @@ tags:
 - 默认值：-
 - 示例：`https://onlyboxes.example.com`
 
-### `ONLYBOXES_API_TOKEN`
+### `ONLYBOXES_JIT_SIGNING_KEY`
 
 - 类型：当 `SANDBOX_PROVIDER=onlyboxes` 时必填
-- 描述：调用 Onlyboxes Console API 使用的 Bearer Token。
+- 描述：用于签发 Onlyboxes MCP JIT Bearer Token 的 HMAC 密钥，必须与 Onlyboxes Console 的 `CONSOLE_JIT_SIGNING_KEY` 一致。
 - 默认值：-
-- 示例：`obx_xxxxxxxxxxxxxxxxxxxxx`
+- 示例：`onlyboxes-jit-signing-secret`
+
+### `ONLYBOXES_JIT_ISSUER`
+
+- 类型：可选
+- 描述：Onlyboxes JIT Token claims 中使用的签发方。
+- 默认值：`APP_URL`
+- 示例：`https://lobehub.example.com`
+
+### `ONLYBOXES_JIT_TTL_SEC`
+
+- 类型：可选
+- 描述：LobeHub 签发的每个 Onlyboxes JIT Token 的有效期。
+- 默认值：`1800`
+- 示例：`900`
 
 ### `ONLYBOXES_LEASE_TTL_SEC`
 
@@ -62,8 +76,14 @@ tags:
 ```bash
 SANDBOX_PROVIDER=onlyboxes
 ONLYBOXES_BASE_URL=https://onlyboxes.example.com
-ONLYBOXES_API_TOKEN=obx_xxxxxxxxxxxxxxxxxxxxx
+ONLYBOXES_JIT_SIGNING_KEY=onlyboxes-jit-signing-secret
 ONLYBOXES_LEASE_TTL_SEC=1800
+```
+
+Onlyboxes Console 侧需要配置同一个密钥：
+
+```bash
+CONSOLE_JIT_SIGNING_KEY=onlyboxes-jit-signing-secret
 ```
 
 <Callout type={'info'}>

@@ -32,12 +32,26 @@ Supported values:
 - Default: -
 - Example: `https://onlyboxes.example.com`
 
-### `ONLYBOXES_API_TOKEN`
+### `ONLYBOXES_JIT_SIGNING_KEY`
 
 - Type: Required when `SANDBOX_PROVIDER=onlyboxes`
-- Description: Bearer token used to call the Onlyboxes console API.
+- Description: HMAC signing key used to mint Onlyboxes MCP JIT bearer tokens. It must match the Onlyboxes console `CONSOLE_JIT_SIGNING_KEY`.
 - Default: -
-- Example: `obx_xxxxxxxxxxxxxxxxxxxxx`
+- Example: `onlyboxes-jit-signing-secret`
+
+### `ONLYBOXES_JIT_ISSUER`
+
+- Type: Optional
+- Description: Issuer used in Onlyboxes JIT token claims.
+- Default: `APP_URL`
+- Example: `https://lobehub.example.com`
+
+### `ONLYBOXES_JIT_TTL_SEC`
+
+- Type: Optional
+- Description: Lifetime of each Onlyboxes JIT token minted by LobeHub.
+- Default: `1800`
+- Example: `900`
 
 ### `ONLYBOXES_LEASE_TTL_SEC`
 
@@ -62,8 +76,14 @@ Configuration example:
 ```bash
 SANDBOX_PROVIDER=onlyboxes
 ONLYBOXES_BASE_URL=https://onlyboxes.example.com
-ONLYBOXES_API_TOKEN=obx_xxxxxxxxxxxxxxxxxxxxx
+ONLYBOXES_JIT_SIGNING_KEY=onlyboxes-jit-signing-secret
 ONLYBOXES_LEASE_TTL_SEC=1800
+```
+
+Set the same secret on the Onlyboxes console:
+
+```bash
+CONSOLE_JIT_SIGNING_KEY=onlyboxes-jit-signing-secret
 ```
 
 <Callout type={'info'}>

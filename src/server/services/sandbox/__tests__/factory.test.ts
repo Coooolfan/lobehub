@@ -35,8 +35,8 @@ describe('sandbox service factory', () => {
   it('uses the onlyboxes provider when configured', async () => {
     vi.doMock('@/envs/app', () => ({
       appEnv: {
-        ONLYBOXES_API_TOKEN: 'token',
         ONLYBOXES_BASE_URL: 'https://onlyboxes.example.com',
+        ONLYBOXES_JIT_SIGNING_KEY: 'jit-signing-key',
         SANDBOX_PROVIDER: 'onlyboxes',
       },
     }));
