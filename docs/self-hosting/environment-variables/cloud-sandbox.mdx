@@ -25,6 +25,27 @@ Supported values:
 - `market`: Use the existing Market sandbox.
 - `onlyboxes`: Use an Onlyboxes-compatible self-hosted sandbox console.
 
+### `MARKET_BASE_URL`
+
+- Type: Optional
+- Description: Base URL of the Market service. Leave it unset when using the official Market; set it only when connecting to a self-hosted or dedicated Market service.
+- Default: `https://market.lobehub.com`
+- Example: `https://market.example.com`
+
+### `MARKET_TRUSTED_CLIENT_ID`
+
+- Type: Optional
+- Description: Market Trusted Client ID used by the LobeHub server to call Market capabilities on behalf of the current user. It must be registered by the target Market service.
+- Default: -
+- Example: `lobechat-com`
+
+### `MARKET_TRUSTED_CLIENT_SECRET`
+
+- Type: Optional
+- Description: Shared secret for the Market Trusted Client. It must match the target Market service configuration.
+- Default: -
+- Example: `your-market-trusted-client-secret`
+
 ### `ONLYBOXES_BASE_URL`
 
 - Type: Required when `SANDBOX_PROVIDER=onlyboxes`
@@ -60,6 +81,30 @@ Supported values:
 - Default: `1800`
 - Example: `3600`
 
+## Market Configuration
+
+By default, LobeHub uses the official Market sandbox and does not require extra sandbox configuration:
+
+```bash
+# SANDBOX_PROVIDER=market
+```
+
+To explicitly use Market, or to connect to a self-hosted or dedicated Market service, configure:
+
+```bash
+SANDBOX_PROVIDER=market
+MARKET_BASE_URL=https://market.example.com
+```
+
+If that Market service requires the LobeHub server to call sandbox, credential, or skill capabilities on behalf of the current user, also configure Trusted Client credentials:
+
+```bash
+MARKET_TRUSTED_CLIENT_ID=lobechat-com
+MARKET_TRUSTED_CLIENT_SECRET=your-market-trusted-client-secret
+```
+
+`MARKET_TRUSTED_CLIENT_ID` must be registered in the Market service's trusted client allowlist, and `MARKET_TRUSTED_CLIENT_SECRET` must match the shared secret configured on the Market service. Without Trusted Client credentials, Market capabilities that require authentication continue to use the existing user authorization flow.
+
 ## Onlyboxes Runtime Requirements
 
 The configured Onlyboxes worker should expose `terminalExec` and `terminalResource`. LobeHub uses `terminalExec` as the compatibility layer for shell commands, code execution, and file operations, and uses `terminalResource` for file export through a pre-signed upload URL.
@@ -71,13 +116,12 @@ For feature parity with the Market sandbox, the terminal runtime image should in
 - `npx` with access to `tsx`, used by TypeScript execution
 - Standard shell utilities such as `base64`, `find`, and `grep`
 
-Configuration example:
+Minimum configuration for using Onlyboxes:
 
 ```bash
 SANDBOX_PROVIDER=onlyboxes
 ONLYBOXES_BASE_URL=https://onlyboxes.example.com
 ONLYBOXES_JIT_SIGNING_KEY=onlyboxes-jit-signing-secret
-ONLYBOXES_LEASE_TTL_SEC=1800
 ```
 
 Set the same secret on the Onlyboxes console:
