@@ -18,6 +18,7 @@ import type {
 const log = debug('lobe-server:sandbox:onlyboxes');
 
 const DEFAULT_TIMEOUT_MS = 120_000;
+const EXPORT_TASK_WAIT_MS = 60_000;
 const DEFAULT_LEASE_TTL_SEC = 900;
 const DEFAULT_JIT_TTL_SEC = 1800;
 const JIT_TOKEN_PREFIX = 'obx_jit_v1.';
@@ -644,7 +645,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
         input,
         mode: options?.mode || 'sync',
         timeout_ms: options?.timeoutMs || DEFAULT_TIMEOUT_MS,
-        wait_ms: options?.mode === 'async' ? 1 : DEFAULT_TIMEOUT_MS,
+        wait_ms: options?.mode === 'async' ? 1 : EXPORT_TASK_WAIT_MS,
       }),
       method: 'POST',
     });

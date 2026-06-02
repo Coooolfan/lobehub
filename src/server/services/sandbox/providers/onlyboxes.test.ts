@@ -365,7 +365,7 @@ describe('OnlyboxesSandboxProvider', () => {
           },
           mode: 'sync',
           timeout_ms: 120_000,
-          wait_ms: 120_000,
+          wait_ms: 60_000,
         }),
       }),
     );
