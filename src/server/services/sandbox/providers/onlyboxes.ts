@@ -18,7 +18,7 @@ import type {
 const log = debug('lobe-server:sandbox:onlyboxes');
 
 const DEFAULT_TIMEOUT_MS = 120_000;
-const DEFAULT_LEASE_TTL_SEC = 1800;
+const DEFAULT_LEASE_TTL_SEC = 900;
 const DEFAULT_JIT_TTL_SEC = 1800;
 const JIT_TOKEN_PREFIX = 'obx_jit_v1.';
 const WRITE_FILE_CHUNK_BYTES = 48 * 1024;
