@@ -6,6 +6,7 @@ import debug from 'debug';
 import { sha256 } from 'js-sha256';
 
 import { appEnv } from '@/envs/app';
+import { sandboxEnv } from '@/envs/sandbox';
 
 import type {
   SandboxProvider,
@@ -65,11 +66,11 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
 
   constructor(options: SandboxServiceOptions) {
     this.options = options;
-    this.baseUrl = (appEnv.ONLYBOXES_BASE_URL || '').replace(/\/+$/, '');
-    this.jitIssuer = appEnv.ONLYBOXES_JIT_ISSUER || appEnv.APP_URL || 'lobehub';
-    this.jitSigningKey = appEnv.ONLYBOXES_JIT_SIGNING_KEY || '';
-    this.jitTTLSec = appEnv.ONLYBOXES_JIT_TTL_SEC || DEFAULT_JIT_TTL_SEC;
-    this.leaseTTLSec = appEnv.ONLYBOXES_LEASE_TTL_SEC || DEFAULT_LEASE_TTL_SEC;
+    this.baseUrl = (sandboxEnv.ONLYBOXES_BASE_URL || '').replace(/\/+$/, '');
+    this.jitIssuer = sandboxEnv.ONLYBOXES_JIT_ISSUER || appEnv.APP_URL || 'lobehub';
+    this.jitSigningKey = sandboxEnv.ONLYBOXES_JIT_SIGNING_KEY || '';
+    this.jitTTLSec = sandboxEnv.ONLYBOXES_JIT_TTL_SEC || DEFAULT_JIT_TTL_SEC;
+    this.leaseTTLSec = sandboxEnv.ONLYBOXES_LEASE_TTL_SEC || DEFAULT_LEASE_TTL_SEC;
   }
 
   async callTool(

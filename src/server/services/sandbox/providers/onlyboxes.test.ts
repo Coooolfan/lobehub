@@ -31,6 +31,10 @@ describe('OnlyboxesSandboxProvider', () => {
     vi.doMock('@/envs/app', () => ({
       appEnv: {
         APP_URL: 'https://lobehub.example.com',
+      },
+    }));
+    vi.doMock('@/envs/sandbox', () => ({
+      sandboxEnv: {
         ONLYBOXES_BASE_URL: 'https://onlyboxes.example.com/',
         ONLYBOXES_JIT_SIGNING_KEY: 'jit-signing-key',
         ONLYBOXES_JIT_TTL_SEC: 900,
