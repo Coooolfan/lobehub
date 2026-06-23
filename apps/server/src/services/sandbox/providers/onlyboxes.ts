@@ -11,6 +11,8 @@ import { sandboxEnv } from '@/envs/sandbox';
 import type {
   SandboxProvider,
   SandboxProviderCapabilities,
+  SandboxProviderCredentialInjectRequest,
+  SandboxProviderCredentialInjectResult,
   SandboxProviderFileExportRequest,
   SandboxProviderFileExportResult,
   SandboxServiceOptions,
@@ -216,6 +218,33 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
         success: false,
       };
     }
+  }
+
+  async injectCredentials({
+    credentials,
+  }: SandboxProviderCredentialInjectRequest): Promise<SandboxProviderCredentialInjectResult> {
+    if (!this.baseUrl || !this.jitSigningKey) {
+      return {
+        credentials,
+        error: { message: 'ONLYBOXES_BASE_URL and ONLYBOXES_JIT_SIGNING_KEY are required' },
+        success: false,
+      };
+    }
+
+    const result = await this.runJsonScript(injectCredentialsScript, { credentials });
+
+    if (!result.success) {
+      return {
+        credentials,
+        error: result.error,
+        success: false,
+      };
+    }
+
+    return {
+      credentials,
+      success: true,
+    };
   }
 
   private get sessionId() {
@@ -898,4 +927,70 @@ def main(encoded):
     pattern = args.get('pattern') or '*'
     files = glob.glob(os.path.join(directory, pattern), recursive=True)
     emit({'files': files, 'totalCount': len(files)})
+`;
+
+const injectCredentialsScript = `${scriptPrelude}
+import shlex
+import urllib.request
+
+ENV_NAME_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+
+def shell_quote(value):
+    return shlex.quote(str(value))
+
+def safe_path_segment(value, fallback):
+    cleaned = re.sub(r'[^A-Za-z0-9_.-]', '-', str(value or ''))
+    return cleaned or fallback
+
+def write_env_line(file, name, value):
+    if not ENV_NAME_RE.match(str(name or '')):
+        return False
+    file.write(f"export {name}={shell_quote(value)}\\n")
+    return True
+
+def main(encoded):
+    args = load_args(encoded)
+    credentials = args.get('credentials') or {}
+    env = credentials.get('env') or {}
+    files = credentials.get('files') or []
+    creds_dir = Path.home() / '.creds'
+    files_dir = creds_dir / 'files'
+    creds_dir.mkdir(mode=0o700, exist_ok=True)
+    files_dir.mkdir(mode=0o700, exist_ok=True)
+
+    env_count = 0
+    written_files = []
+    env_path = creds_dir / 'env'
+
+    with env_path.open('a', encoding='utf-8') as env_file:
+        for name, value in env.items():
+            if write_env_line(env_file, name, value):
+                env_count += 1
+
+        for item in files:
+            if not isinstance(item, dict):
+                continue
+
+            key = safe_path_segment(item.get('key'), 'credential')
+            filename = safe_path_segment(
+                os.path.basename(str(item.get('fileName') or 'credential')),
+                'credential',
+            )
+
+            target_dir = files_dir / key
+            target_dir.mkdir(mode=0o700, exist_ok=True)
+            target = target_dir / filename
+            url = item.get('content')
+
+            with urllib.request.urlopen(str(url), timeout=60) as response:
+                target.write_bytes(response.read())
+            os.chmod(target, 0o600)
+            written_files.append(str(target))
+
+            env_name = item.get('envName')
+            if env_name and write_env_line(env_file, env_name, str(target)):
+                env_count += 1
+
+    os.chmod(env_path, 0o600)
+    emit({'envCount': env_count, 'files': written_files, 'success': True})
 `;

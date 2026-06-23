@@ -17,6 +17,8 @@ import type {
   SandboxCommandResult,
   SandboxProvider,
   SandboxProviderCapabilities,
+  SandboxProviderCredentialInjectRequest,
+  SandboxProviderCredentialInjectResult,
   SandboxProviderKind,
   SandboxService,
   SandboxServiceOptions,
@@ -44,6 +46,12 @@ export class SandboxMiddlewareService implements SandboxService {
   ): Promise<SandboxCallToolResult> {
     await this.ensureFilesInitialized();
     return this.provider.callTool(toolName, params);
+  }
+
+  async injectCredentials(
+    request: SandboxProviderCredentialInjectRequest,
+  ): Promise<SandboxProviderCredentialInjectResult> {
+    return this.provider.injectCredentials(request);
   }
 
   /**

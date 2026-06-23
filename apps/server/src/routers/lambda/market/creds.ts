@@ -6,6 +6,7 @@ import { withRbacPermission } from '@/business/server/trpc-middlewares/rbacPermi
 import { publicProcedure, router } from '@/libs/trpc/lambda';
 import { marketUserInfo, requireMarketAuth, serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { MarketService } from '@/server/services/market';
+import { injectSandboxCredentials } from '@/server/services/sandbox/credentials';
 
 const log = debug('lambda-router:market:creds');
 
@@ -261,8 +262,9 @@ export const credsRouter = router({
           });
         }
 
-        const result = await ctx.marketService.market.creds.inject({
+        const result = await injectSandboxCredentials({
           keys: input.keys,
+          marketService: ctx.marketService,
           sandbox: input.sandbox,
           topicId: input.topicId,
           userId,

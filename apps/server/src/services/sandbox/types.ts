@@ -3,6 +3,7 @@ import type {
   SandboxExportFileResult,
 } from '@lobechat/builtin-tool-cloud-sandbox';
 import type { LobeChatDatabase } from '@lobechat/database';
+import type { InjectCredsResponse } from '@lobehub/market-types';
 
 import type { FileService } from '@/server/services/file';
 import type { MarketService } from '@/server/services/market';
@@ -38,11 +39,18 @@ export interface SandboxProvider extends Pick<ISandboxService, 'callTool'> {
     request: SandboxProviderFileExportRequest,
   ) => Promise<SandboxProviderFileExportResult>;
 
+  injectCredentials: (
+    request: SandboxProviderCredentialInjectRequest,
+  ) => Promise<SandboxProviderCredentialInjectResult>;
+
   readonly kind: SandboxProviderKind;
 }
 
 export interface SandboxService extends ISandboxService {
   readonly capabilities: SandboxProviderCapabilities;
+  injectCredentials: (
+    request: SandboxProviderCredentialInjectRequest,
+  ) => Promise<SandboxProviderCredentialInjectResult>;
   readonly kind: SandboxProviderKind;
 }
 
@@ -62,6 +70,16 @@ export interface SandboxProviderFileExportResult {
   mimeType?: string;
   result?: Record<string, unknown>;
   size?: number;
+  success: boolean;
+}
+
+export interface SandboxProviderCredentialInjectRequest {
+  credentials: InjectCredsResponse['credentials'];
+}
+
+export interface SandboxProviderCredentialInjectResult {
+  credentials: InjectCredsResponse['credentials'];
+  error?: { message: string; name?: string };
   success: boolean;
 }
 

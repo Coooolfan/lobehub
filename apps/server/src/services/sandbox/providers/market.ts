@@ -6,6 +6,8 @@ import { SandboxMiddlewareService } from '../service';
 import type {
   SandboxProvider,
   SandboxProviderCapabilities,
+  SandboxProviderCredentialInjectRequest,
+  SandboxProviderCredentialInjectResult,
   SandboxProviderFileExportRequest,
   SandboxProviderFileExportResult,
   SandboxService,
@@ -139,6 +141,15 @@ export class MarketSandboxProvider implements SandboxProvider {
         success: false,
       };
     }
+  }
+
+  async injectCredentials({
+    credentials,
+  }: SandboxProviderCredentialInjectRequest): Promise<SandboxProviderCredentialInjectResult> {
+    return {
+      credentials,
+      success: true,
+    };
   }
 }
 

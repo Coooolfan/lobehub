@@ -6,6 +6,7 @@ import {
 import debug from 'debug';
 
 import { MarketService } from '@/server/services/market';
+import { injectSandboxCredentials } from '@/server/services/sandbox/credentials';
 
 import { type ServerRuntimeRegistration } from './types';
 
@@ -98,8 +99,9 @@ class ServerCredsService implements ICredsService {
   }> {
     log('injectCreds: keys=%O, topicId=%s', params.keys, params.topicId);
 
-    const result = await this.marketService.market.creds.inject({
+    const result = await injectSandboxCredentials({
       keys: params.keys,
+      marketService: this.marketService,
       sandbox: params.sandbox,
       topicId: params.topicId,
       userId: params.userId,

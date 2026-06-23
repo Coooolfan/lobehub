@@ -375,6 +375,66 @@ describe('OnlyboxesSandboxProvider', () => {
     );
   });
 
+  it('writes injected credentials into the persistent terminal session', async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          exit_code: 0,
+          session_id: 'lobe-user-1-topic-1',
+          stderr: '',
+          stdout: JSON.stringify({
+            envCount: 2,
+            files: ['/home/lobe/.creds/files/gcp-sa/credentials.json'],
+            success: true,
+          }),
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { OnlyboxesSandboxProvider } = await import('./onlyboxes');
+    const provider = new OnlyboxesSandboxProvider({
+      marketService: {} as MarketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    const credentials = {
+      env: { GITHUB_ACCESS_TOKEN: 'ghp_test' },
+      files: [
+        {
+          content: 'https://files.example.com/credentials.json',
+          envName: 'GOOGLE_APPLICATION_CREDENTIALS',
+          fileName: 'credentials.json',
+          key: 'gcp-sa',
+          mimeType: 'application/json',
+        },
+      ],
+      headers: {},
+    };
+
+    const result = await provider.injectCredentials({ credentials });
+
+    expect(result).toEqual({
+      credentials,
+      success: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://onlyboxes.example.com/api/v1/commands/terminal',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(init.body)) as { command: string };
+    expect(body.command).toContain("Path.home() / '.creds'");
+    expect(body.command).toContain("credentials.get('env')");
+    expect(body.command).toContain('urllib.request.urlopen');
+    expect(body.command).not.toContain('ghp_test');
+  });
+
   it('runs execScript from a prepared skill directory when skill zip URLs are available', async () => {
     const fetchMock = vi
       .fn()

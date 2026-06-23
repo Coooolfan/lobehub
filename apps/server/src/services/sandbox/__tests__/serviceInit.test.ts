@@ -26,6 +26,7 @@ const createProvider = (): SandboxProvider =>
     },
     callTool: vi.fn(async () => ({ result: {}, success: true })),
     exportFileToUploadUrl: vi.fn(),
+    injectCredentials: vi.fn(),
     kind: 'onlyboxes',
   }) satisfies SandboxProvider;
 

@@ -29,6 +29,7 @@ describe('SandboxMiddlewareService', () => {
       },
       callTool: vi.fn(),
       exportFileToUploadUrl,
+      injectCredentials: vi.fn(),
       kind: 'onlyboxes',
     } satisfies SandboxProvider;
 
@@ -95,6 +96,7 @@ describe('SandboxMiddlewareService', () => {
         error: { message: 'no such file', name: 'not_found' },
         success: false,
       })),
+      injectCredentials: vi.fn(),
       kind: 'onlyboxes',
     } satisfies SandboxProvider;
 
