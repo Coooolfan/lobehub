@@ -85,7 +85,7 @@ When sandbox mode is enabled and you need to run code that requires credentials:
 **Environment Variable Naming:**
 - **oauth**: \`{{KEY}}_ACCESS_TOKEN\` (e.g., \`GITHUB_ACCESS_TOKEN\`)
 - **kv-env**: Each key-value pair becomes an environment variable as defined (e.g., \`OPENAI_API_KEY\`)
-- **kv-header**: \`{{KEY}}_{{HEADER_NAME}}\` format (e.g., \`GITHUB_AUTH_HEADER_AUTHORIZATION\`)
+- **kv-header**: \`{{KEY}}_HEADER_{{HEADER_NAME}}\` format, with both segments uppercased and non-alphanumeric characters converted to underscores (e.g., credential key \`github-auth\` with header \`Authorization\` -> \`GITHUB_AUTH_HEADER_AUTHORIZATION\`)
 
 **File Credential Usage:**
 - File credentials are extracted to \`~/.creds/files/{key}/{filename}\`
