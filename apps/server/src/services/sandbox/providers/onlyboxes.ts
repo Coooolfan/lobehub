@@ -231,7 +231,10 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
       };
     }
 
-    const result = await this.runJsonScript(injectCredentialsScript, { credentials });
+    const result = await this.runJsonScript(injectCredentialsScript, {
+      credentials,
+      requireSuccess: true,
+    });
 
     if (!result.success) {
       return {
@@ -611,7 +614,8 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     params: Record<string, unknown>,
     timeoutMs = this.timeout(params),
   ): Promise<SandboxCallToolResult> {
-    const encoded = Buffer.from(JSON.stringify(params)).toString('base64');
+    const { requireSuccess, ...scriptParams } = params;
+    const encoded = Buffer.from(JSON.stringify(scriptParams)).toString('base64');
     const command = `python3 - <<'PY'\n${script}\nmain('${encoded}')\nPY`;
     const terminal = await this.execTerminal(command, timeoutMs);
 
@@ -624,9 +628,19 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     }
 
     try {
-      const result = JSON.parse(terminal.stdout || '{}') as Record<string, unknown>;
+      const output = (terminal.stdout || '').trim();
 
-      if (result.success === false) {
+      if (!output) {
+        return {
+          error: { message: 'Onlyboxes script produced no JSON output' },
+          result: { output: terminal.stdout, stderr: terminal.stderr },
+          success: false,
+        };
+      }
+
+      const result = JSON.parse(output) as Record<string, unknown>;
+
+      if (result.success === false || (requireSuccess === true && result.success !== true)) {
         return {
           error: { message: String(result.error || 'Onlyboxes script failed') },
           result,

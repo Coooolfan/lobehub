@@ -442,6 +442,78 @@ describe('OnlyboxesSandboxProvider', () => {
     expect(body.command).not.toContain('Bearer header-token');
   });
 
+  it('fails credential injection when the terminal script emits no JSON output', async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          exit_code: 0,
+          session_id: 'lobe-user-1-topic-1',
+          stderr: '',
+          stdout: '',
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { OnlyboxesSandboxProvider } = await import('./onlyboxes');
+    const provider = new OnlyboxesSandboxProvider({
+      marketService: {} as MarketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    const credentials = {
+      env: { GITHUB_ACCESS_TOKEN: 'ghp_test' },
+      files: [],
+      headers: {},
+    };
+
+    const result = await provider.injectCredentials({ credentials });
+
+    expect(result).toEqual({
+      credentials,
+      error: { message: 'Onlyboxes script produced no JSON output' },
+      success: false,
+    });
+  });
+
+  it('requires credential injection scripts to report success explicitly', async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          exit_code: 0,
+          session_id: 'lobe-user-1-topic-1',
+          stderr: '',
+          stdout: '{}',
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { OnlyboxesSandboxProvider } = await import('./onlyboxes');
+    const provider = new OnlyboxesSandboxProvider({
+      marketService: {} as MarketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    const credentials = {
+      env: { GITHUB_ACCESS_TOKEN: 'ghp_test' },
+      files: [],
+      headers: {},
+    };
+
+    const result = await provider.injectCredentials({ credentials });
+
+    expect(result).toEqual({
+      credentials,
+      error: { message: 'Onlyboxes script failed' },
+      success: false,
+    });
+  });
+
   it('runs execScript from a prepared skill directory when skill zip URLs are available', async () => {
     const fetchMock = vi
       .fn()

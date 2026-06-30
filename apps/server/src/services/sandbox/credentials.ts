@@ -2,25 +2,29 @@ import type { InjectCredsResponse } from '@lobehub/market-types';
 
 import type { MarketService } from '@/server/services/market';
 
-import { createSandboxService } from './factory';
+import { createSandboxService as defaultCreateSandboxService } from './factory';
 
 type InjectedCredentials = InjectCredsResponse['credentials'];
 type MarketCredentialSummary = Awaited<
   ReturnType<MarketService['market']['creds']['list']>
 >['data'][number];
 type MarketCredentialWithPlaintext = Awaited<ReturnType<MarketService['market']['creds']['get']>>;
+type SandboxCredentialInjector = Pick<
+  ReturnType<typeof defaultCreateSandboxService>,
+  'injectCredentials'
+>;
+type CreateSandboxServiceForCredentials = (
+  options: Parameters<typeof defaultCreateSandboxService>[0],
+) => SandboxCredentialInjector;
 
 interface InjectSandboxCredentialsParams {
+  createSandboxService?: CreateSandboxServiceForCredentials;
   keys: string[];
   marketService: MarketService;
   sandbox?: boolean;
   topicId: string;
   userId: string;
 }
-
-const getPlaintextValues = (credential: MarketCredentialWithPlaintext) => {
-  return Object.fromEntries(Object.entries(credential.plaintext || {}));
-};
 
 const normalizeEnvNameSegment = (value: string) =>
   value.replaceAll(/[^A-Z0-9]/gi, '_').toUpperCase();
@@ -80,7 +84,7 @@ const resolveKvPlaintextCredentials = async ({
   const kvHeaderEnvNames = new Set<string>();
 
   for (const credential of decryptedCredentials) {
-    const plaintextValues = getPlaintextValues(credential);
+    const plaintextValues = credential.plaintext || {};
 
     if (credential.type === 'kv-env') {
       Object.assign(plaintextEnv, plaintextValues);
@@ -130,6 +134,7 @@ const resolveKvPlaintextCredentials = async ({
 };
 
 export const injectSandboxCredentials = async ({
+  createSandboxService = defaultCreateSandboxService,
   keys,
   marketService,
   sandbox = true,
@@ -155,7 +160,6 @@ export const injectSandboxCredentials = async ({
     keys,
     marketService,
   });
-  const resolvedResult = credentials === result.credentials ? result : { ...result, credentials };
 
   const sandboxService = createSandboxService({ marketService, topicId, userId });
   const injection = await sandboxService.injectCredentials({
@@ -166,5 +170,5 @@ export const injectSandboxCredentials = async ({
     throw new Error(injection.error?.message || 'Failed to inject credentials into sandbox');
   }
 
-  return resolvedResult;
+  return result;
 };

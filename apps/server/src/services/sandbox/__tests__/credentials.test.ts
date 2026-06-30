@@ -2,20 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { MarketService } from '@/server/services/market';
 
-const mocks = vi.hoisted(() => {
-  const sandboxService = {
-    injectCredentials: vi.fn(),
-  };
+import { injectSandboxCredentials } from '../credentials';
 
-  return {
-    createSandboxService: vi.fn(() => sandboxService),
-    sandboxService,
-  };
-});
-
-vi.mock('../factory', () => ({
-  createSandboxService: mocks.createSandboxService,
-}));
+const sandboxService = {
+  injectCredentials: vi.fn(),
+};
+const createSandboxService = vi.fn(() => sandboxService);
 
 const createMarketService = () =>
   ({
@@ -42,7 +34,8 @@ const createMarketService = () =>
 describe('injectSandboxCredentials', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.sandboxService.injectCredentials.mockResolvedValue({
+    createSandboxService.mockReturnValue(sandboxService);
+    sandboxService.injectCredentials.mockResolvedValue({
       credentials: {
         env: { OPENAI_API_KEY: 'sk-test' },
         files: [],
@@ -54,9 +47,8 @@ describe('injectSandboxCredentials', () => {
 
   it('delegates decrypted credentials to the configured sandbox provider', async () => {
     const marketService = createMarketService();
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['openai'],
       marketService,
       topicId: 'topic-1',
@@ -69,12 +61,12 @@ describe('injectSandboxCredentials', () => {
       topicId: 'topic-1',
       userId: 'user-1',
     });
-    expect(mocks.createSandboxService).toHaveBeenCalledWith({
+    expect(createSandboxService).toHaveBeenCalledWith({
       marketService,
       topicId: 'topic-1',
       userId: 'user-1',
     });
-    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
         env: { OPENAI_API_KEY: 'sk-test' },
         files: [],
@@ -88,9 +80,8 @@ describe('injectSandboxCredentials', () => {
 
   it('does not call the sandbox provider when sandbox injection is disabled', async () => {
     const marketService = createMarketService();
-    const { injectSandboxCredentials } = await import('../credentials');
-
     await injectSandboxCredentials({
+      createSandboxService,
       keys: ['openai'],
       marketService,
       sandbox: false,
@@ -106,7 +97,7 @@ describe('injectSandboxCredentials', () => {
     });
     expect(marketService.market.creds.list).not.toHaveBeenCalled();
     expect(marketService.market.creds.get).not.toHaveBeenCalled();
-    expect(mocks.createSandboxService).not.toHaveBeenCalled();
+    expect(createSandboxService).not.toHaveBeenCalled();
   });
 
   it('resolves requested KV env credentials from decrypted plaintext before sandbox injection', async () => {
@@ -143,9 +134,8 @@ describe('injectSandboxCredentials', () => {
       updatedAt: '2026-06-26T00:00:00.000Z',
     });
 
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['github-token'],
       marketService,
       topicId: 'topic-1',
@@ -154,14 +144,14 @@ describe('injectSandboxCredentials', () => {
 
     expect(marketService.market.creds.list).toHaveBeenCalledTimes(1);
     expect(marketService.market.creds.get).toHaveBeenCalledWith(42, { decrypt: true });
-    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
         env: { https_proxy: 'http://proxy.example.com' },
         files: [],
         headers: {},
       },
     });
-    expect(result.credentials.env).toEqual({ https_proxy: 'http://proxy.example.com' });
+    expect(result.credentials.env).toEqual({ https_proxy: 'http://masked.example.com' });
   });
 
   it('keeps Market injected env when the requested credential is not KV env', async () => {
@@ -189,9 +179,8 @@ describe('injectSandboxCredentials', () => {
       ],
     });
 
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['github-token'],
       marketService,
       topicId: 'topic-1',
@@ -199,7 +188,7 @@ describe('injectSandboxCredentials', () => {
     });
 
     expect(marketService.market.creds.get).not.toHaveBeenCalled();
-    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
         env: { GH_TOKEN: 'gi******Ch' },
         files: [],
@@ -243,9 +232,8 @@ describe('injectSandboxCredentials', () => {
       updatedAt: '2026-06-26T00:00:00.000Z',
     });
 
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['deepseek-sk'],
       marketService,
       topicId: 'topic-1',
@@ -254,20 +242,20 @@ describe('injectSandboxCredentials', () => {
 
     expect(marketService.market.creds.list).toHaveBeenCalledTimes(1);
     expect(marketService.market.creds.get).toHaveBeenCalledWith(43, { decrypt: true });
-    expect(mocks.createSandboxService).toHaveBeenCalledWith({
+    expect(createSandboxService).toHaveBeenCalledWith({
       marketService,
       topicId: 'topic-1',
       userId: 'user-1',
     });
-    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
         env: { DEEPSEEK_SK_HEADER_SK: 'sk-deepseek-test' },
         files: [],
         headers: { SK: 'sk-deepseek-test' },
       },
     });
-    expect(result.credentials.env).toEqual({ DEEPSEEK_SK_HEADER_SK: 'sk-deepseek-test' });
-    expect(result.credentials.headers).toEqual({ SK: 'sk-deepseek-test' });
+    expect(result.credentials.env).toEqual({ DEEPSEEK_SK_HEADER_SK: 'sk-******st' });
+    expect(result.credentials.headers).toEqual({});
   });
 
   it('uses the documented KV header env name when Market does not return one', async () => {
@@ -304,24 +292,23 @@ describe('injectSandboxCredentials', () => {
       updatedAt: '2026-06-26T00:00:00.000Z',
     });
 
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['custom-api'],
       marketService,
       topicId: 'topic-1',
       userId: 'user-1',
     });
 
-    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
         env: { CUSTOM_API_HEADER_X_API_KEY: 'sk-custom-test' },
         files: [],
         headers: { 'X-Api-Key': 'sk-custom-test' },
       },
     });
-    expect(result.credentials.env).toEqual({ CUSTOM_API_HEADER_X_API_KEY: 'sk-custom-test' });
-    expect(result.credentials.headers).toEqual({ 'X-Api-Key': 'sk-custom-test' });
+    expect(result.credentials.env).toEqual({});
+    expect(result.credentials.headers).toEqual({ 'X-Api-Key': 'sk-******st' });
   });
 
   it('calls the sandbox provider when only non-KV header credentials are returned', async () => {
@@ -337,9 +324,8 @@ describe('injectSandboxCredentials', () => {
       unsupportedInSandbox: [],
     });
 
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['oauth-header'],
       marketService,
       topicId: 'topic-1',
@@ -347,7 +333,7 @@ describe('injectSandboxCredentials', () => {
     });
 
     expect(marketService.market.creds.get).not.toHaveBeenCalled();
-    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
         env: {},
         files: [],
@@ -378,9 +364,8 @@ describe('injectSandboxCredentials', () => {
       unsupportedInSandbox: [],
     });
 
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['gcp-sa'],
       marketService,
       topicId: 'topic-1',
@@ -389,7 +374,7 @@ describe('injectSandboxCredentials', () => {
 
     expect(marketService.market.creds.list).not.toHaveBeenCalled();
     expect(marketService.market.creds.get).not.toHaveBeenCalled();
-    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
         env: {},
         files: [
@@ -420,9 +405,8 @@ describe('injectSandboxCredentials', () => {
       unsupportedInSandbox: [],
     });
 
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['openai'],
       marketService,
       topicId: 'topic-1',
@@ -430,7 +414,7 @@ describe('injectSandboxCredentials', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(mocks.createSandboxService).not.toHaveBeenCalled();
+    expect(createSandboxService).not.toHaveBeenCalled();
   });
 
   it('injects available credentials even when some requested keys are missing', async () => {
@@ -446,9 +430,8 @@ describe('injectSandboxCredentials', () => {
       unsupportedInSandbox: [],
     });
 
-    const { injectSandboxCredentials } = await import('../credentials');
-
     const result = await injectSandboxCredentials({
+      createSandboxService,
       keys: ['openai', 'missing-key'],
       marketService,
       topicId: 'topic-1',
@@ -456,7 +439,7 @@ describe('injectSandboxCredentials', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
         env: { OPENAI_API_KEY: 'sk-test' },
         files: [],
@@ -466,7 +449,7 @@ describe('injectSandboxCredentials', () => {
   });
 
   it('throws when the sandbox provider cannot write the credentials', async () => {
-    mocks.sandboxService.injectCredentials.mockResolvedValue({
+    sandboxService.injectCredentials.mockResolvedValue({
       credentials: {
         env: {},
         files: [],
@@ -477,10 +460,10 @@ describe('injectSandboxCredentials', () => {
     });
 
     const marketService = createMarketService();
-    const { injectSandboxCredentials } = await import('../credentials');
 
     await expect(
       injectSandboxCredentials({
+        createSandboxService,
         keys: ['openai'],
         marketService,
         topicId: 'topic-1',
