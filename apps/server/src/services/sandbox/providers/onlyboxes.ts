@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 
 import type { SandboxCallToolResult } from '@lobechat/builtin-tool-cloud-sandbox';
 import { isRecord } from '@lobechat/utils';
+import type { InjectCredsResponse } from '@lobehub/market-types';
 import debug from 'debug';
 import { sha256 } from 'js-sha256';
 
@@ -45,6 +46,39 @@ interface TerminalExecResult {
   stdout?: string;
   stdout_truncated?: boolean;
 }
+
+const summarizeSecretRecord = (record: Record<string, string> | undefined) =>
+  Object.fromEntries(
+    Object.entries(record || {}).map(([name, value]) => [
+      name,
+      {
+        hasValue: value.length > 0,
+        masked: value.includes('*'),
+      },
+    ]),
+  );
+
+const summarizeInjectedCredentials = (credentials: InjectCredsResponse['credentials']) => ({
+  env: summarizeSecretRecord(credentials.env),
+  files: credentials.files.map((file) => {
+    const record = file as typeof file & Record<string, unknown>;
+
+    return {
+      envName: file.envName,
+      fields: Object.keys(record).sort(),
+      fileName: file.fileName,
+      hasContent: typeof record.content === 'string' && record.content.length > 0,
+      hasDownloadUrl: typeof record.downloadUrl === 'string' && record.downloadUrl.length > 0,
+      hasSignedUrl: typeof record.signedUrl === 'string' && record.signedUrl.length > 0,
+      hasUrl: typeof record.url === 'string' && record.url.length > 0,
+      key: file.key,
+      mimeType: file.mimeType,
+    };
+  }),
+  headers: summarizeSecretRecord(credentials.headers),
+});
+
+const stringifySummary = (summary: unknown) => JSON.stringify(summary, null, 2);
 
 export class OnlyboxesSandboxProvider implements SandboxProvider {
   readonly capabilities = {
@@ -231,6 +265,10 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
       };
     }
 
+    log(
+      'Onlyboxes credential injection shape: %s',
+      stringifySummary(summarizeInjectedCredentials(credentials)),
+    );
     const result = await this.runJsonScript(injectCredentialsScript, { credentials });
 
     if (!result.success) {
@@ -934,6 +972,7 @@ import shlex
 import urllib.request
 
 ENV_NAME_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+EXPORT_NAME_RE = re.compile(r'^export\\s+([A-Za-z_][A-Za-z0-9_]*)=')
 
 def shell_quote(value):
     return shlex.quote(str(value))
@@ -942,16 +981,42 @@ def safe_path_segment(value, fallback):
     cleaned = re.sub(r'[^A-Za-z0-9_.-]', '-', str(value or ''))
     return cleaned or fallback
 
-def write_env_line(file, name, value):
-    if not ENV_NAME_RE.match(str(name or '')):
-        return False
-    file.write(f"export {name}={shell_quote(value)}\\n")
-    return True
+def build_env_line(name, value):
+    env_name = str(name or '')
+    if not ENV_NAME_RE.match(env_name):
+        return None
+    return (env_name, f"export {env_name}={shell_quote(value)}\\n")
+
+def existing_export_name(line):
+    match = EXPORT_NAME_RE.match(line)
+    return match.group(1) if match else None
+
+def write_env_file(env_path, env_lines):
+    deduped_env_lines = dict(env_lines)
+    replace_names = set(deduped_env_lines.keys())
+    existing_lines = []
+    if env_path.exists():
+        existing_lines = env_path.read_text(encoding='utf-8').splitlines(keepends=True)
+
+    kept_lines = [
+        line for line in existing_lines
+        if existing_export_name(line) not in replace_names
+    ]
+
+    with env_path.open('w', encoding='utf-8') as env_file:
+        env_file.writelines(kept_lines)
+        if kept_lines and not kept_lines[-1].endswith('\\n'):
+            env_file.write('\\n')
+        for line in deduped_env_lines.values():
+            env_file.write(line)
+
+    return len(deduped_env_lines)
 
 def main(encoded):
     args = load_args(encoded)
     credentials = args.get('credentials') or {}
     env = credentials.get('env') or {}
+    headers = credentials.get('headers') or {}
     files = credentials.get('files') or []
     creds_dir = Path.home() / '.creds'
     files_dir = creds_dir / 'files'
@@ -961,36 +1026,52 @@ def main(encoded):
     env_count = 0
     written_files = []
     env_path = creds_dir / 'env'
+    env_lines = []
 
-    with env_path.open('a', encoding='utf-8') as env_file:
-        for name, value in env.items():
-            if write_env_line(env_file, name, value):
-                env_count += 1
+    for name, value in env.items():
+        env_line = build_env_line(name, value)
+        if env_line:
+            env_lines.append(env_line)
 
-        for item in files:
-            if not isinstance(item, dict):
-                continue
+    for name, value in headers.items():
+        env_line = build_env_line(name, value)
+        if env_line:
+            env_lines.append(env_line)
 
-            key = safe_path_segment(item.get('key'), 'credential')
-            filename = safe_path_segment(
-                os.path.basename(str(item.get('fileName') or 'credential')),
-                'credential',
-            )
+    for item in files:
+        if not isinstance(item, dict):
+            continue
 
-            target_dir = files_dir / key
-            target_dir.mkdir(mode=0o700, exist_ok=True)
-            target = target_dir / filename
-            url = item.get('content')
+        key = safe_path_segment(item.get('key'), 'credential')
+        filename = safe_path_segment(
+            os.path.basename(str(item.get('fileName') or 'credential')),
+            'credential',
+        )
 
-            with urllib.request.urlopen(str(url), timeout=60) as response:
-                target.write_bytes(response.read())
-            os.chmod(target, 0o600)
-            written_files.append(str(target))
+        target_dir = files_dir / key
+        target_dir.mkdir(mode=0o700, exist_ok=True)
+        target = target_dir / filename
+        url = item.get('content') or item.get('url') or item.get('downloadUrl') or item.get('signedUrl')
+        if not isinstance(url, str) or not url:
+            emit({
+                'error': f"Missing credential file download URL for key={item.get('key') or 'unknown'} fileName={item.get('fileName') or 'unknown'}",
+                'files': written_files,
+                'success': False,
+            })
+            return
 
-            env_name = item.get('envName')
-            if env_name and write_env_line(env_file, env_name, str(target)):
-                env_count += 1
+        with urllib.request.urlopen(url, timeout=60) as response:
+            target.write_bytes(response.read())
+        os.chmod(target, 0o600)
+        written_files.append(str(target))
 
+        env_name = item.get('envName')
+        if env_name:
+            env_line = build_env_line(env_name, str(target))
+            if env_line:
+                env_lines.append(env_line)
+
+    env_count = write_env_file(env_path, env_lines)
     os.chmod(env_path, 0o600)
     emit({'envCount': env_count, 'files': written_files, 'success': True})
 `;

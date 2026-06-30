@@ -113,7 +113,7 @@ describe('injectSandboxCredentials', () => {
     const marketService = createMarketService();
     vi.mocked(marketService.market.creds.inject).mockResolvedValue({
       credentials: {
-        env: { GH_TOKEN: 'gi******Ch' },
+        env: { https_proxy: 'http://masked.example.com' },
         files: [],
         headers: {},
       },
@@ -138,7 +138,7 @@ describe('injectSandboxCredentials', () => {
       id: 42,
       key: 'github-token',
       name: 'GitHub token',
-      plaintext: { gh_token: 'github-token-plain' },
+      plaintext: { https_proxy: 'http://proxy.example.com' },
       type: 'kv-env',
       updatedAt: '2026-06-26T00:00:00.000Z',
     });
@@ -156,12 +156,12 @@ describe('injectSandboxCredentials', () => {
     expect(marketService.market.creds.get).toHaveBeenCalledWith(42, { decrypt: true });
     expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
       credentials: {
-        env: { GH_TOKEN: 'github-token-plain' },
+        env: { https_proxy: 'http://proxy.example.com' },
         files: [],
         headers: {},
       },
     });
-    expect(result.credentials.env).toEqual({ GH_TOKEN: 'github-token-plain' });
+    expect(result.credentials.env).toEqual({ https_proxy: 'http://proxy.example.com' });
   });
 
   it('keeps Market injected env when the requested credential is not KV env', async () => {
@@ -207,6 +207,204 @@ describe('injectSandboxCredentials', () => {
       },
     });
     expect(result.credentials.env).toEqual({ GH_TOKEN: 'gi******Ch' });
+  });
+
+  it('resolves requested KV header credentials from decrypted plaintext before sandbox injection', async () => {
+    const marketService = createMarketService();
+    vi.mocked(marketService.market.creds.inject).mockResolvedValue({
+      credentials: {
+        env: { DEEPSEEK_SK_HEADER_SK: 'sk-******st' },
+        files: [],
+        headers: {},
+      },
+      notFound: [],
+      success: true,
+      unsupportedInSandbox: [],
+    });
+    vi.mocked(marketService.market.creds.list).mockResolvedValue({
+      data: [
+        {
+          createdAt: '2026-06-26T00:00:00.000Z',
+          id: 43,
+          key: 'deepseek-sk',
+          name: 'DeepSeek header',
+          type: 'kv-header',
+          updatedAt: '2026-06-26T00:00:00.000Z',
+        },
+      ],
+    });
+    vi.mocked(marketService.market.creds.get).mockResolvedValue({
+      createdAt: '2026-06-26T00:00:00.000Z',
+      id: 43,
+      key: 'deepseek-sk',
+      name: 'DeepSeek header',
+      plaintext: { SK: 'sk-deepseek-test' },
+      type: 'kv-header',
+      updatedAt: '2026-06-26T00:00:00.000Z',
+    });
+
+    const { injectSandboxCredentials } = await import('../credentials');
+
+    const result = await injectSandboxCredentials({
+      keys: ['deepseek-sk'],
+      marketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    expect(marketService.market.creds.list).toHaveBeenCalledTimes(1);
+    expect(marketService.market.creds.get).toHaveBeenCalledWith(43, { decrypt: true });
+    expect(mocks.createSandboxService).toHaveBeenCalledWith({
+      marketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+      credentials: {
+        env: { DEEPSEEK_SK_HEADER_SK: 'sk-deepseek-test' },
+        files: [],
+        headers: { SK: 'sk-deepseek-test' },
+      },
+    });
+    expect(result.credentials.env).toEqual({ DEEPSEEK_SK_HEADER_SK: 'sk-deepseek-test' });
+    expect(result.credentials.headers).toEqual({ SK: 'sk-deepseek-test' });
+  });
+
+  it('uses the documented KV header env name when Market does not return one', async () => {
+    const marketService = createMarketService();
+    vi.mocked(marketService.market.creds.inject).mockResolvedValue({
+      credentials: {
+        env: {},
+        files: [],
+        headers: { 'X-Api-Key': 'sk-******st' },
+      },
+      notFound: [],
+      success: true,
+      unsupportedInSandbox: [],
+    });
+    vi.mocked(marketService.market.creds.list).mockResolvedValue({
+      data: [
+        {
+          createdAt: '2026-06-26T00:00:00.000Z',
+          id: 44,
+          key: 'custom-api',
+          name: 'Custom API header',
+          type: 'kv-header',
+          updatedAt: '2026-06-26T00:00:00.000Z',
+        },
+      ],
+    });
+    vi.mocked(marketService.market.creds.get).mockResolvedValue({
+      createdAt: '2026-06-26T00:00:00.000Z',
+      id: 44,
+      key: 'custom-api',
+      name: 'Custom API header',
+      plaintext: { 'X-Api-Key': 'sk-custom-test' },
+      type: 'kv-header',
+      updatedAt: '2026-06-26T00:00:00.000Z',
+    });
+
+    const { injectSandboxCredentials } = await import('../credentials');
+
+    const result = await injectSandboxCredentials({
+      keys: ['custom-api'],
+      marketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+      credentials: {
+        env: { CUSTOM_API_HEADER_X_API_KEY: 'sk-custom-test' },
+        files: [],
+        headers: { 'X-Api-Key': 'sk-custom-test' },
+      },
+    });
+    expect(result.credentials.env).toEqual({ CUSTOM_API_HEADER_X_API_KEY: 'sk-custom-test' });
+    expect(result.credentials.headers).toEqual({ 'X-Api-Key': 'sk-custom-test' });
+  });
+
+  it('calls the sandbox provider when only non-KV header credentials are returned', async () => {
+    const marketService = createMarketService();
+    vi.mocked(marketService.market.creds.inject).mockResolvedValue({
+      credentials: {
+        env: {},
+        files: [],
+        headers: { AUTHORIZATION: 'Bearer ghp_test' },
+      },
+      notFound: [],
+      success: true,
+      unsupportedInSandbox: [],
+    });
+
+    const { injectSandboxCredentials } = await import('../credentials');
+
+    const result = await injectSandboxCredentials({
+      keys: ['oauth-header'],
+      marketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    expect(marketService.market.creds.get).not.toHaveBeenCalled();
+    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+      credentials: {
+        env: {},
+        files: [],
+        headers: { AUTHORIZATION: 'Bearer ghp_test' },
+      },
+    });
+    expect(result.credentials.headers).toEqual({ AUTHORIZATION: 'Bearer ghp_test' });
+  });
+
+  it('does not list Market credentials when only file credentials are returned', async () => {
+    const marketService = createMarketService();
+    vi.mocked(marketService.market.creds.inject).mockResolvedValue({
+      credentials: {
+        env: {},
+        files: [
+          {
+            content: 'https://files.example.com/credentials.json',
+            envName: 'GOOGLE_APPLICATION_CREDENTIALS',
+            fileName: 'credentials.json',
+            key: 'gcp-sa',
+            mimeType: 'application/json',
+          },
+        ],
+        headers: {},
+      },
+      notFound: [],
+      success: true,
+      unsupportedInSandbox: [],
+    });
+
+    const { injectSandboxCredentials } = await import('../credentials');
+
+    const result = await injectSandboxCredentials({
+      keys: ['gcp-sa'],
+      marketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    expect(marketService.market.creds.list).not.toHaveBeenCalled();
+    expect(marketService.market.creds.get).not.toHaveBeenCalled();
+    expect(mocks.sandboxService.injectCredentials).toHaveBeenCalledWith({
+      credentials: {
+        env: {},
+        files: [
+          {
+            content: 'https://files.example.com/credentials.json',
+            envName: 'GOOGLE_APPLICATION_CREDENTIALS',
+            fileName: 'credentials.json',
+            key: 'gcp-sa',
+            mimeType: 'application/json',
+          },
+        ],
+        headers: {},
+      },
+    });
+    expect(result.credentials.files).toHaveLength(1);
   });
 
   it('does not call the sandbox provider when Market returns no injectable credentials', async () => {

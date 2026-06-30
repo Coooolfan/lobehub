@@ -383,7 +383,7 @@ describe('OnlyboxesSandboxProvider', () => {
           session_id: 'lobe-user-1-topic-1',
           stderr: '',
           stdout: JSON.stringify({
-            envCount: 2,
+            envCount: 3,
             files: ['/home/lobe/.creds/files/gcp-sa/credentials.json'],
             success: true,
           }),
@@ -411,7 +411,7 @@ describe('OnlyboxesSandboxProvider', () => {
           mimeType: 'application/json',
         },
       ],
-      headers: {},
+      headers: { AUTHORIZATION: 'Bearer header-token' },
     };
 
     const result = await provider.injectCredentials({ credentials });
@@ -431,8 +431,15 @@ describe('OnlyboxesSandboxProvider', () => {
     const body = JSON.parse(String(init.body)) as { command: string };
     expect(body.command).toContain("Path.home() / '.creds'");
     expect(body.command).toContain("credentials.get('env')");
+    expect(body.command).toContain("credentials.get('headers')");
+    expect(body.command).toContain('EXPORT_NAME_RE');
+    expect(body.command).toContain('existing_export_name(line) not in replace_names');
+    expect(body.command).toContain("env_path.read_text(encoding='utf-8')");
     expect(body.command).toContain('urllib.request.urlopen');
+    expect(body.command).toContain("item.get('content') or item.get('url')");
+    expect(body.command).toContain('Missing credential file download URL');
     expect(body.command).not.toContain('ghp_test');
+    expect(body.command).not.toContain('Bearer header-token');
   });
 
   it('runs execScript from a prepared skill directory when skill zip URLs are available', async () => {
