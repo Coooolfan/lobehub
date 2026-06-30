@@ -8,14 +8,10 @@ type InjectedCredentials = InjectCredsResponse['credentials'];
 type MarketCredentialSummary = Awaited<
   ReturnType<MarketService['market']['creds']['list']>
 >['data'][number];
-type MarketCredentialWithPlaintext = Awaited<ReturnType<MarketService['market']['creds']['get']>>;
-type SandboxCredentialInjector = Pick<
-  ReturnType<typeof defaultCreateSandboxService>,
-  'injectCredentials'
->;
+
 type CreateSandboxServiceForCredentials = (
   options: Parameters<typeof defaultCreateSandboxService>[0],
-) => SandboxCredentialInjector;
+) => Pick<ReturnType<typeof defaultCreateSandboxService>, 'injectCredentials'>;
 
 interface InjectSandboxCredentialsParams {
   createSandboxService?: CreateSandboxServiceForCredentials;
@@ -39,7 +35,6 @@ const getKvHeaderEnvNameCandidates = (credentialKey: string, headerName: string)
   return new Set([
     getKvHeaderEnvName(credentialKey, headerName),
     `${credentialEnvPrefix}_${headerEnvName}`,
-    `${credentialEnvPrefix}_HEADER_${headerEnvName}`,
   ]);
 };
 
@@ -112,10 +107,6 @@ const resolveKvPlaintextCredentials = async ({
         }
       }
     }
-  }
-
-  if (Object.keys(plaintextEnv).length === 0 && Object.keys(plaintextHeaders).length === 0) {
-    return credentials;
   }
 
   return {

@@ -78,7 +78,6 @@ export interface SandboxProviderCredentialInjectRequest {
 }
 
 export interface SandboxProviderCredentialInjectResult {
-  credentials: InjectCredsResponse['credentials'];
   error?: { message: string; name?: string };
   success: boolean;
 }

@@ -143,13 +143,10 @@ export class MarketSandboxProvider implements SandboxProvider {
     }
   }
 
-  async injectCredentials({
-    credentials,
-  }: SandboxProviderCredentialInjectRequest): Promise<SandboxProviderCredentialInjectResult> {
-    return {
-      credentials,
-      success: true,
-    };
+  async injectCredentials(
+    _request: SandboxProviderCredentialInjectRequest,
+  ): Promise<SandboxProviderCredentialInjectResult> {
+    return { success: true };
   }
 }
 

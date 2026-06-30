@@ -416,10 +416,7 @@ describe('OnlyboxesSandboxProvider', () => {
 
     const result = await provider.injectCredentials({ credentials });
 
-    expect(result).toEqual({
-      credentials,
-      success: true,
-    });
+    expect(result).toEqual({ success: true });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://onlyboxes.example.com/api/v1/commands/terminal',
       expect.objectContaining({
@@ -472,7 +469,6 @@ describe('OnlyboxesSandboxProvider', () => {
     const result = await provider.injectCredentials({ credentials });
 
     expect(result).toEqual({
-      credentials,
       error: { message: 'Onlyboxes script produced no JSON output' },
       success: false,
     });
@@ -508,7 +504,6 @@ describe('OnlyboxesSandboxProvider', () => {
     const result = await provider.injectCredentials({ credentials });
 
     expect(result).toEqual({
-      credentials,
       error: { message: 'Onlyboxes script failed' },
       success: false,
     });

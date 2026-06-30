@@ -225,27 +225,25 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
   }: SandboxProviderCredentialInjectRequest): Promise<SandboxProviderCredentialInjectResult> {
     if (!this.baseUrl || !this.jitSigningKey) {
       return {
-        credentials,
         error: { message: 'ONLYBOXES_BASE_URL and ONLYBOXES_JIT_SIGNING_KEY are required' },
         success: false,
       };
     }
 
-    const result = await this.runJsonScript(injectCredentialsScript, {
-      credentials,
-      requireSuccess: true,
-    });
+    const result = await this.runJsonScript(
+      injectCredentialsScript,
+      { credentials },
+      { requireSuccess: true },
+    );
 
     if (!result.success) {
       return {
-        credentials,
         error: result.error,
         success: false,
       };
     }
 
     return {
-      credentials,
       success: true,
     };
   }
@@ -527,7 +525,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
     const init = await this.runJsonScript(
       prepareWriteFileScript,
       { createDirectories, path },
-      timeoutMs,
+      { timeoutMs },
     );
 
     if (!init.success) {
@@ -542,7 +540,7 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
       const append = await this.runJsonScript(
         appendWriteFileChunkScript,
         { chunk, path },
-        timeoutMs,
+        { timeoutMs },
       );
 
       if (!append.success) {
@@ -612,10 +610,10 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
   private async runJsonScript(
     script: string,
     params: Record<string, unknown>,
-    timeoutMs = this.timeout(params),
+    options: { requireSuccess?: boolean; timeoutMs?: number } = {},
   ): Promise<SandboxCallToolResult> {
-    const { requireSuccess, ...scriptParams } = params;
-    const encoded = Buffer.from(JSON.stringify(scriptParams)).toString('base64');
+    const { requireSuccess, timeoutMs = this.timeout(params) } = options;
+    const encoded = Buffer.from(JSON.stringify(params)).toString('base64');
     const command = `python3 - <<'PY'\n${script}\nmain('${encoded}')\nPY`;
     const terminal = await this.execTerminal(command, timeoutMs);
 
@@ -999,7 +997,6 @@ def main(encoded):
     creds_dir.mkdir(mode=0o700, exist_ok=True)
     files_dir.mkdir(mode=0o700, exist_ok=True)
 
-    env_count = 0
     written_files = []
     env_path = creds_dir / 'env'
     env_lines = []

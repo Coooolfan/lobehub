@@ -35,14 +35,7 @@ describe('injectSandboxCredentials', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createSandboxService.mockReturnValue(sandboxService);
-    sandboxService.injectCredentials.mockResolvedValue({
-      credentials: {
-        env: { OPENAI_API_KEY: 'sk-test' },
-        files: [],
-        headers: {},
-      },
-      success: true,
-    });
+    sandboxService.injectCredentials.mockResolvedValue({ success: true });
   });
 
   it('delegates decrypted credentials to the configured sandbox provider', async () => {
@@ -450,11 +443,6 @@ describe('injectSandboxCredentials', () => {
 
   it('throws when the sandbox provider cannot write the credentials', async () => {
     sandboxService.injectCredentials.mockResolvedValue({
-      credentials: {
-        env: {},
-        files: [],
-        headers: {},
-      },
       error: { message: 'write failed' },
       success: false,
     });
