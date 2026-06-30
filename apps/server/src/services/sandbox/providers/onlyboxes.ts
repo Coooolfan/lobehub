@@ -2,7 +2,6 @@ import { createHmac } from 'node:crypto';
 
 import type { SandboxCallToolResult } from '@lobechat/builtin-tool-cloud-sandbox';
 import { isRecord } from '@lobechat/utils';
-import type { InjectCredsResponse } from '@lobehub/market-types';
 import debug from 'debug';
 import { sha256 } from 'js-sha256';
 
@@ -46,39 +45,6 @@ interface TerminalExecResult {
   stdout?: string;
   stdout_truncated?: boolean;
 }
-
-const summarizeSecretRecord = (record: Record<string, string> | undefined) =>
-  Object.fromEntries(
-    Object.entries(record || {}).map(([name, value]) => [
-      name,
-      {
-        hasValue: value.length > 0,
-        masked: value.includes('*'),
-      },
-    ]),
-  );
-
-const summarizeInjectedCredentials = (credentials: InjectCredsResponse['credentials']) => ({
-  env: summarizeSecretRecord(credentials.env),
-  files: credentials.files.map((file) => {
-    const record = file as typeof file & Record<string, unknown>;
-
-    return {
-      envName: file.envName,
-      fields: Object.keys(record).sort(),
-      fileName: file.fileName,
-      hasContent: typeof record.content === 'string' && record.content.length > 0,
-      hasDownloadUrl: typeof record.downloadUrl === 'string' && record.downloadUrl.length > 0,
-      hasSignedUrl: typeof record.signedUrl === 'string' && record.signedUrl.length > 0,
-      hasUrl: typeof record.url === 'string' && record.url.length > 0,
-      key: file.key,
-      mimeType: file.mimeType,
-    };
-  }),
-  headers: summarizeSecretRecord(credentials.headers),
-});
-
-const stringifySummary = (summary: unknown) => JSON.stringify(summary, null, 2);
 
 export class OnlyboxesSandboxProvider implements SandboxProvider {
   readonly capabilities = {
@@ -265,10 +231,6 @@ export class OnlyboxesSandboxProvider implements SandboxProvider {
       };
     }
 
-    log(
-      'Onlyboxes credential injection shape: %s',
-      stringifySummary(summarizeInjectedCredentials(credentials)),
-    );
     const result = await this.runJsonScript(injectCredentialsScript, { credentials });
 
     if (!result.success) {

@@ -1,11 +1,8 @@
 import type { InjectCredsResponse } from '@lobehub/market-types';
-import debug from 'debug';
 
 import type { MarketService } from '@/server/services/market';
 
 import { createSandboxService } from './factory';
-
-const log = debug('lobe-server:sandbox:credentials');
 
 type InjectedCredentials = InjectCredsResponse['credentials'];
 type MarketCredentialSummary = Awaited<
@@ -47,46 +44,6 @@ const isKvCredential = (
 ): credential is MarketCredentialSummary =>
   credential?.type === 'kv-env' || credential?.type === 'kv-header';
 
-const summarizeSecretRecord = (record: Record<string, string> | undefined) =>
-  Object.fromEntries(
-    Object.entries(record || {}).map(([name, value]) => [
-      name,
-      {
-        hasValue: value.length > 0,
-        masked: value.includes('*'),
-      },
-    ]),
-  );
-
-const summarizeCredentials = (credentials: InjectedCredentials) => ({
-  env: summarizeSecretRecord(credentials.env),
-  files: credentials.files.map((file) => {
-    const record = file as typeof file & Record<string, unknown>;
-
-    return {
-      envName: file.envName,
-      fields: Object.keys(record).sort(),
-      fileName: file.fileName,
-      hasContent: typeof record.content === 'string' && record.content.length > 0,
-      hasDownloadUrl: typeof record.downloadUrl === 'string' && record.downloadUrl.length > 0,
-      hasSignedUrl: typeof record.signedUrl === 'string' && record.signedUrl.length > 0,
-      hasUrl: typeof record.url === 'string' && record.url.length > 0,
-      key: file.key,
-      mimeType: file.mimeType,
-    };
-  }),
-  headers: summarizeSecretRecord(credentials.headers),
-});
-
-const summarizeInjectResponse = (result: InjectCredsResponse) => ({
-  credentials: summarizeCredentials(result.credentials),
-  missing: result.missing?.map((item) => ({ key: item.key, type: item.type })),
-  success: result.success,
-  unsupportedInSandbox: result.unsupportedInSandbox,
-});
-
-const stringifySummary = (summary: unknown) => JSON.stringify(summary, null, 2);
-
 const resolveKvPlaintextCredentials = async ({
   credentials,
   keys,
@@ -113,28 +70,9 @@ const resolveKvPlaintextCredentials = async ({
 
   if (requestedKvCredentials.length === 0) return credentials;
 
-  log(
-    'resolving plaintext kv credentials: %O',
-    requestedKvCredentials.map((credential) => ({
-      id: credential.id,
-      key: credential.key,
-      type: credential.type,
-    })),
-  );
-
   const decryptedCredentials = await Promise.all(
     requestedKvCredentials.map((credential) =>
       marketService.market.creds.get(credential.id, { decrypt: true }),
-    ),
-  );
-  log(
-    'decrypted kv credential shape: %s',
-    stringifySummary(
-      decryptedCredentials.map((credential) => ({
-        key: credential.key,
-        plaintextKeys: Object.keys(credential.plaintext || {}).sort(),
-        type: credential.type,
-      })),
     ),
   );
   const plaintextEnv: Record<string, string> = {};
@@ -204,7 +142,6 @@ export const injectSandboxCredentials = async ({
     topicId,
     userId,
   })) as InjectCredsResponse;
-  log('market inject response shape: %s', stringifySummary(summarizeInjectResponse(result)));
 
   const hasCredentialsToInject =
     Object.keys(result.credentials.env || {}).length > 0 ||
@@ -219,11 +156,6 @@ export const injectSandboxCredentials = async ({
     marketService,
   });
   const resolvedResult = credentials === result.credentials ? result : { ...result, credentials };
-
-  log(
-    'sandbox credential injection shape: %s',
-    stringifySummary(summarizeCredentials(credentials)),
-  );
 
   const sandboxService = createSandboxService({ marketService, topicId, userId });
   const injection = await sandboxService.injectCredentials({
