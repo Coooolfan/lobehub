@@ -37,7 +37,7 @@ describe('getSandboxConfig', () => {
     process.env.ONLYBOXES_JIT_ISSUER = 'lobehub-test';
     process.env.ONLYBOXES_JIT_SIGNING_KEY = 'jit-signing-key';
     process.env.ONLYBOXES_JIT_TTL_SEC = '900';
-    process.env.ONLYBOXES_LEASE_TTL_SEC = '3600';
+    process.env.ONLYBOXES_LEASE_TTL_SEC = '900';
 
     const { getSandboxConfig } = await import('../sandbox');
     const config = getSandboxConfig();
@@ -47,6 +47,6 @@ describe('getSandboxConfig', () => {
     expect(config.ONLYBOXES_JIT_ISSUER).toBe('lobehub-test');
     expect(config.ONLYBOXES_JIT_SIGNING_KEY).toBe('jit-signing-key');
     expect(config.ONLYBOXES_JIT_TTL_SEC).toBe(900);
-    expect(config.ONLYBOXES_LEASE_TTL_SEC).toBe(3600);
+    expect(config.ONLYBOXES_LEASE_TTL_SEC).toBe(900);
   });
 });
