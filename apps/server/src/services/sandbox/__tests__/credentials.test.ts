@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MarketService } from '@/server/services/market';
 
 import { injectSandboxCredentials } from '../credentials';
+import type { SandboxService } from '../types';
 
-const sandboxService = {
-  injectCredentials: vi.fn(),
+type SandboxCredentialService = Pick<SandboxService, 'injectCredentials' | 'kind'>;
+
+const injectCredentials = vi.fn<SandboxService['injectCredentials']>();
+const sandboxService: SandboxCredentialService = {
+  injectCredentials,
+  kind: 'onlyboxes',
 };
-const createSandboxService = vi.fn(() => sandboxService);
+const createSandboxService = vi.fn<() => SandboxCredentialService>(() => sandboxService);
 
 const createMarketService = () =>
   ({
@@ -35,7 +40,7 @@ describe('injectSandboxCredentials', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createSandboxService.mockReturnValue(sandboxService);
-    sandboxService.injectCredentials.mockResolvedValue({ success: true });
+    injectCredentials.mockResolvedValue({ success: true });
   });
 
   it('delegates decrypted credentials to the configured sandbox provider', async () => {
@@ -91,6 +96,44 @@ describe('injectSandboxCredentials', () => {
     expect(marketService.market.creds.list).not.toHaveBeenCalled();
     expect(marketService.market.creds.get).not.toHaveBeenCalled();
     expect(createSandboxService).not.toHaveBeenCalled();
+  });
+
+  it('keeps Market-managed sandbox injection unchanged for the market provider', async () => {
+    const marketSandboxService: SandboxCredentialService = {
+      injectCredentials: vi.fn(),
+      kind: 'market',
+    };
+    createSandboxService.mockReturnValue(marketSandboxService);
+
+    const marketService = createMarketService();
+    vi.mocked(marketService.market.creds.inject).mockResolvedValue({
+      credentials: {
+        env: { DEEPSEEK_SK_HEADER_SK: 'sk-******st' },
+        files: [],
+        headers: {},
+      },
+      notFound: [],
+      success: true,
+      unsupportedInSandbox: [],
+    });
+
+    const result = await injectSandboxCredentials({
+      createSandboxService,
+      keys: ['deepseek-sk'],
+      marketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    expect(createSandboxService).toHaveBeenCalledWith({
+      marketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+    expect(marketService.market.creds.list).not.toHaveBeenCalled();
+    expect(marketService.market.creds.get).not.toHaveBeenCalled();
+    expect(marketSandboxService.injectCredentials).not.toHaveBeenCalled();
+    expect(result.credentials.env).toEqual({ DEEPSEEK_SK_HEADER_SK: 'sk-******st' });
   });
 
   it('resolves requested KV env credentials from decrypted plaintext before sandbox injection', async () => {
@@ -442,7 +485,7 @@ describe('injectSandboxCredentials', () => {
   });
 
   it('throws when the sandbox provider cannot write the credentials', async () => {
-    sandboxService.injectCredentials.mockResolvedValue({
+    injectCredentials.mockResolvedValue({
       error: { message: 'write failed' },
       success: false,
     });

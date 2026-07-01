@@ -11,7 +11,7 @@ type MarketCredentialSummary = Awaited<
 
 type CreateSandboxServiceForCredentials = (
   options: Parameters<typeof defaultCreateSandboxService>[0],
-) => Pick<ReturnType<typeof defaultCreateSandboxService>, 'injectCredentials'>;
+) => Pick<ReturnType<typeof defaultCreateSandboxService>, 'injectCredentials' | 'kind'>;
 
 interface InjectSandboxCredentialsParams {
   createSandboxService?: CreateSandboxServiceForCredentials;
@@ -146,13 +146,15 @@ export const injectSandboxCredentials = async ({
 
   if (!sandbox || !hasCredentialsToInject) return result;
 
+  const sandboxService = createSandboxService({ marketService, topicId, userId });
+  if (sandboxService.kind === 'market') return result;
+
   const credentials = await resolveKvPlaintextCredentials({
     credentials: result.credentials,
     keys,
     marketService,
   });
 
-  const sandboxService = createSandboxService({ marketService, topicId, userId });
   const injection = await sandboxService.injectCredentials({
     credentials,
   });
