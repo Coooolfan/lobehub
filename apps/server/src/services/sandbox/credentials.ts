@@ -28,16 +28,6 @@ const normalizeEnvNameSegment = (value: string) =>
 const getKvHeaderEnvName = (credentialKey: string, headerName: string) =>
   `${normalizeEnvNameSegment(credentialKey)}_HEADER_${normalizeEnvNameSegment(headerName)}`;
 
-const getKvHeaderEnvNameCandidates = (credentialKey: string, headerName: string) => {
-  const credentialEnvPrefix = normalizeEnvNameSegment(credentialKey);
-  const headerEnvName = normalizeEnvNameSegment(headerName);
-
-  return new Set([
-    getKvHeaderEnvName(credentialKey, headerName),
-    `${credentialEnvPrefix}_${headerEnvName}`,
-  ]);
-};
-
 const isKvCredential = (
   credential: MarketCredentialSummary | undefined,
 ): credential is MarketCredentialSummary =>
@@ -76,7 +66,6 @@ const resolveKvPlaintextCredentials = async ({
   );
   const plaintextEnv: Record<string, string> = {};
   const plaintextHeaders: Record<string, string> = {};
-  const kvHeaderEnvNames = new Set<string>();
 
   for (const credential of decryptedCredentials) {
     const plaintextValues = credential.plaintext || {};
@@ -90,21 +79,7 @@ const resolveKvPlaintextCredentials = async ({
       Object.assign(plaintextHeaders, plaintextValues);
 
       for (const [headerName, value] of Object.entries(plaintextValues)) {
-        const envNameCandidates = getKvHeaderEnvNameCandidates(credential.key, headerName);
-        const matchedEnvNames = [...envNameCandidates].filter((envName) =>
-          Object.hasOwn(credentials.env || {}, envName),
-        );
-        const envNames =
-          matchedEnvNames.length > 0
-            ? matchedEnvNames
-            : [getKvHeaderEnvName(credential.key, headerName)];
-
-        for (const envName of envNameCandidates) {
-          kvHeaderEnvNames.add(envName);
-        }
-        for (const envName of envNames) {
-          plaintextEnv[envName] = value;
-        }
+        plaintextEnv[getKvHeaderEnvName(credential.key, headerName)] = value;
       }
     }
   }
@@ -112,9 +87,7 @@ const resolveKvPlaintextCredentials = async ({
   return {
     ...credentials,
     env: {
-      ...Object.fromEntries(
-        Object.entries(credentials.env || {}).filter(([name]) => !kvHeaderEnvNames.has(name)),
-      ),
+      ...credentials.env,
       ...plaintextEnv,
     },
     headers: {

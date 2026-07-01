@@ -247,14 +247,13 @@ export const credsRouter = router({
         keys: z.array(z.string()),
         sandbox: z.boolean().optional().default(true),
         topicId: z.string(),
-        userId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       log('inject input: %O', input);
 
       try {
-        const userId = input.userId || ctx.userId;
+        const userId = ctx.userId;
         if (!userId) {
           throw new TRPCError({
             code: 'BAD_REQUEST',

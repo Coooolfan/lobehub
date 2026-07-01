@@ -7,8 +7,6 @@ import { lambdaClient, toolsClient } from '@/libs/trpc/client';
 import { getToolStoreState, useToolStore } from '@/store/tool';
 import { composioStoreSelectors } from '@/store/tool/selectors';
 import { ComposioServerStatus } from '@/store/tool/slices/composioStore/types';
-import { useUserStore } from '@/store/user';
-import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
 
 import { CredsIdentifier } from '../manifest';
 import type {
@@ -310,27 +308,12 @@ class CredsExecutor extends BaseExecutor<typeof CredsApiName> {
         };
       }
 
-      // Get userId from user store (like cloud-sandbox does)
-      const userId = userProfileSelectors.userId(useUserStore.getState());
-      if (!userId) {
-        return {
-          content: 'Cannot inject credentials: user is not authenticated.',
-          error: {
-            message: 'userId is required but not available',
-            type: 'MissingUserId',
-          },
-          success: false,
-        };
-      }
-
       log('[CredsExecutor] injectCredsToSandbox - keys:', params.keys, 'topicId:', topicId);
 
-      // Call the inject API with keys, topicId and userId from context
       const result = await lambdaClient.market.creds.inject.mutate({
         keys: params.keys,
         sandbox: true,
         topicId,
-        userId,
       });
 
       const credentials = (result as any).credentials || {};

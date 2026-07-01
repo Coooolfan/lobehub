@@ -347,6 +347,82 @@ describe('injectSandboxCredentials', () => {
     expect(result.credentials.headers).toEqual({ 'X-Api-Key': 'sk-******st' });
   });
 
+  it('does not overwrite a KV env credential that collides with a legacy KV header alias', async () => {
+    const marketService = createMarketService();
+    vi.mocked(marketService.market.creds.inject).mockResolvedValue({
+      credentials: {
+        env: { FOO_BAR: 'masked-env' },
+        files: [],
+        headers: {},
+      },
+      notFound: [],
+      success: true,
+      unsupportedInSandbox: [],
+    });
+    vi.mocked(marketService.market.creds.list).mockResolvedValue({
+      data: [
+        {
+          createdAt: '2026-06-26T00:00:00.000Z',
+          id: 45,
+          key: 'foo',
+          name: 'Foo header',
+          type: 'kv-header',
+          updatedAt: '2026-06-26T00:00:00.000Z',
+        },
+        {
+          createdAt: '2026-06-26T00:00:00.000Z',
+          id: 46,
+          key: 'foo-env',
+          name: 'Foo env',
+          type: 'kv-env',
+          updatedAt: '2026-06-26T00:00:00.000Z',
+        },
+      ],
+    });
+    vi.mocked(marketService.market.creds.get).mockImplementation(async (id) => {
+      if (id === 45) {
+        return {
+          createdAt: '2026-06-26T00:00:00.000Z',
+          id: 45,
+          key: 'foo',
+          name: 'Foo header',
+          plaintext: { BAR: 'header-secret' } as Record<string, string>,
+          type: 'kv-header',
+          updatedAt: '2026-06-26T00:00:00.000Z',
+        };
+      }
+
+      return {
+        createdAt: '2026-06-26T00:00:00.000Z',
+        id: 46,
+        key: 'foo-env',
+        name: 'Foo env',
+        plaintext: { FOO_BAR: 'env-secret' } as Record<string, string>,
+        type: 'kv-env',
+        updatedAt: '2026-06-26T00:00:00.000Z',
+      };
+    });
+
+    await injectSandboxCredentials({
+      createSandboxService,
+      keys: ['foo', 'foo-env'],
+      marketService,
+      topicId: 'topic-1',
+      userId: 'user-1',
+    });
+
+    expect(sandboxService.injectCredentials).toHaveBeenCalledWith({
+      credentials: {
+        env: {
+          FOO_BAR: 'env-secret',
+          FOO_HEADER_BAR: 'header-secret',
+        },
+        files: [],
+        headers: { BAR: 'header-secret' },
+      },
+    });
+  });
+
   it('calls the sandbox provider when only non-KV header credentials are returned', async () => {
     const marketService = createMarketService();
     vi.mocked(marketService.market.creds.inject).mockResolvedValue({
