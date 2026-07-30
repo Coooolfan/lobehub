@@ -63,7 +63,13 @@ import { ToolExecutionService } from '@/server/services/toolExecution';
 import { BuiltinToolsExecutor } from '@/server/services/toolExecution/builtin';
 
 import { isAbortError, throwIfAborted } from './abort';
-import { CompletionLifecycle, isSuccessLikeCompletionReason } from './CompletionLifecycle';
+import {
+  CompletionLifecycle,
+  extractTextFromMessageContent,
+  findLastAssistantMessage,
+  isSuccessLikeCompletionReason,
+  normalizeCompletionMessages,
+} from './CompletionLifecycle';
 import { hookDispatcher } from './hooks';
 import { HumanInterventionHandler } from './HumanInterventionHandler';
 import { OperationTraceRecorder } from './OperationTraceRecorder';
@@ -2188,16 +2194,16 @@ export class AgentRuntimeService {
       }
     }
     const messages = Array.isArray(finalState?.messages) ? finalState.messages : [];
-    const lastAssistant = [...messages]
-      .reverse()
-      .find((m: { role?: string }) => m?.role === 'assistant');
+    const lastAssistant = findLastAssistantMessage(normalizeCompletionMessages(messages));
+    const lastAssistantContent = lastAssistant
+      ? extractTextFromMessageContent(lastAssistant.content)
+      : undefined;
     const errorReason = failed ? formatSubAgentErrorReason(finalState?.error) : undefined;
     const content = failed
       ? errorReason
         ? `Sub-agent did not complete (${reason}): ${errorReason}`
         : `Sub-agent did not complete (${reason}).`
-      : (lastAssistant?.content as string | undefined) ||
-        'Sub-agent completed without a textual answer.';
+      : lastAssistantContent || 'Sub-agent completed without a textual answer.';
 
     const backfill = await this.messageModel.updateToolMessage(toolMessageId, {
       content,
@@ -2382,9 +2388,10 @@ export class AgentRuntimeService {
       }
     }
     const messages = Array.isArray(finalState?.messages) ? finalState.messages : [];
-    const lastAssistant = [...messages]
-      .reverse()
-      .find((m: { role?: string }) => m?.role === 'assistant');
+    const lastAssistant = findLastAssistantMessage(normalizeCompletionMessages(messages));
+    const lastAssistantContent = lastAssistant
+      ? extractTextFromMessageContent(lastAssistant.content)
+      : undefined;
     const agentLabel = (finalState?.metadata?.agentId as string | undefined) ?? 'member';
     const memberErrorReason = failed ? formatSubAgentErrorReason(finalState?.error) : undefined;
     const anchorContent = failed
@@ -2393,8 +2400,7 @@ export class AgentRuntimeService {
         : `Agent member did not complete (${reason}).`
       : mode === 'in_group'
         ? `Agent ${agentLabel} responded in the group.`
-        : (lastAssistant?.content as string | undefined) ||
-          'Agent member completed without a textual answer.';
+        : lastAssistantContent || 'Agent member completed without a textual answer.';
 
     const anchorBackfill = await this.messageModel.updateToolMessage(anchorMessageId, {
       content: anchorContent,

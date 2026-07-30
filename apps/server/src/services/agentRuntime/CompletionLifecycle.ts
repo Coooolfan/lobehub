@@ -834,10 +834,7 @@ export class CompletionLifecycle {
     // the turn has any text — so an image-only or tool-output final turn
     // doesn't fall through to an earlier assistant message and ship stale
     // text alongside the current attachments.
-    const lastAssistantMessage = messages
-      .slice()
-      .reverse()
-      .find((message) => message.role === 'assistant');
+    const lastAssistantMessage = findLastAssistantMessage(messages);
     const lastAssistantContent = lastAssistantMessage
       ? extractTextFromMessageContent(lastAssistantMessage.content)
       : undefined;
@@ -945,7 +942,7 @@ const buildAttachmentFromUrl = (
  * Pull text out of a message's `content` field. Accepts both string and
  * OpenAI-style multimodal arrays `[{ type: 'text', text }, { type: 'image_url', image_url: { url } }]`.
  */
-const extractTextFromMessageContent = (content: unknown): string | undefined => {
+export const extractTextFromMessageContent = (content: unknown): string | undefined => {
   if (typeof content === 'string') return content || undefined;
   if (!Array.isArray(content)) return undefined;
   const parts: string[] = [];
@@ -971,7 +968,9 @@ const extractTextFromMessageContent = (content: unknown): string | undefined => 
  * the persisted leaf turns rather than that virtual wrapper, otherwise they
  * lose both the final text and the message id used by DB recovery.
  */
-const normalizeCompletionMessages = (messages: unknown[]): Record<PropertyKey, unknown>[] => {
+export const normalizeCompletionMessages = (
+  messages: unknown[],
+): Record<PropertyKey, unknown>[] => {
   const normalized: Record<PropertyKey, unknown>[] = [];
 
   for (const message of messages) {
@@ -1018,6 +1017,19 @@ const normalizeCompletionMessages = (messages: unknown[]): Record<PropertyKey, u
 
   return normalized;
 };
+
+/**
+ * Find the final assistant boundary after display-only groups have been
+ * normalized. Match by role rather than content so an empty/image-only final
+ * turn never falls through to stale text from an earlier assistant message.
+ */
+export const findLastAssistantMessage = (
+  messages: Record<PropertyKey, unknown>[],
+): Record<PropertyKey, unknown> | undefined =>
+  messages
+    .slice()
+    .reverse()
+    .find((message) => message.role === 'assistant');
 
 /**
  * Extract image/file parts from a message's `content` array. Each entry is
