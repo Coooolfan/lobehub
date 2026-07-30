@@ -1,5 +1,4 @@
 import { isParkedStatus } from '@lobechat/agent-runtime';
-import type { MessageContentPart } from '@lobechat/types';
 import { deserializeParts } from '@lobechat/utils';
 import { isRecord } from '@lobechat/utils/object';
 import debug from 'debug';
@@ -796,16 +795,8 @@ export class CompletionLifecycle {
       // in DisplayContent) rather than sniffing the string, so a legitimate
       // plain-text reply that happens to be a JSON array is preserved as-is.
       // Extract only the text parts; an image-only row recovers nothing.
-      const isMultimodal =
-        (row?.metadata as { isMultimodal?: boolean } | null | undefined)?.isMultimodal === true;
-      const parts = isMultimodal ? deserializeParts(raw) : null;
-      const content = parts
-        ? parts
-            .filter((p): p is Extract<MessageContentPart, { type: 'text' }> => p.type === 'text')
-            .map((p) => p.text)
-            .join('')
-        : raw;
-      if (!content.trim()) return undefined;
+      const content = extractTextFromMessage(row);
+      if (!content?.trim()) return undefined;
 
       // console (not debug) so state/DB divergence stays visible in
       // production logs — the silent variant of this is what made
@@ -956,6 +947,23 @@ export const extractTextFromMessageContent = (content: unknown): string | undefi
   }
   const joined = parts.join('');
   return joined || undefined;
+};
+
+/**
+ * Extract text from either an in-memory message or a DB-rehydrated row.
+ * Persisted multimodal content is serialized, so only deserialize when the
+ * row's explicit metadata flag identifies that storage representation.
+ */
+export const extractTextFromMessage = (message: unknown): string | undefined => {
+  if (!isRecord(message)) return undefined;
+
+  const metadata = isRecord(message.metadata) ? message.metadata : undefined;
+  const content =
+    typeof message.content === 'string' && metadata?.isMultimodal === true
+      ? (deserializeParts(message.content) ?? message.content)
+      : message.content;
+
+  return extractTextFromMessageContent(content);
 };
 
 /**

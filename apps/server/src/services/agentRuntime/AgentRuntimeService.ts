@@ -65,7 +65,7 @@ import { BuiltinToolsExecutor } from '@/server/services/toolExecution/builtin';
 import { isAbortError, throwIfAborted } from './abort';
 import {
   CompletionLifecycle,
-  extractTextFromMessageContent,
+  extractTextFromMessage,
   findLastAssistantMessage,
   isSuccessLikeCompletionReason,
   normalizeCompletionMessages,
@@ -2179,25 +2179,25 @@ export class AgentRuntimeService {
     //
     // A state loaded via the fallback above arrives without `messages` (the
     // persisted Redis blob no longer carries them — see
-    // AgentStateManager.serializeStateForPersist), so rehydrate from the DB
-    // before reading the sub-agent's final answer. An in-process
-    // params.finalState already carries them and skips this.
+    // AgentStateManager.serializeStateForPersist). Resolve the final leaf from
+    // the parsed DB conversation, then recover the original row by id so its
+    // serialized content stays paired with metadata.isMultimodal. An in-process
+    // params.finalState already carries messages and skips this query.
+    let lastAssistant: unknown;
     if (!failed && finalState && !Array.isArray(finalState.messages)) {
       try {
-        finalState.messages = await this.refreshMessagesFromDB(finalState);
+        lastAssistant = await this.resolveLastAssistantMessageFromDB(finalState);
       } catch (error) {
         console.error(
-          '[%s] sub-agent bridge: failed to refresh messages from DB: %O',
+          '[%s] sub-agent bridge: failed to resolve final assistant from DB: %O',
           operationId,
           error,
         );
       }
     }
     const messages = Array.isArray(finalState?.messages) ? finalState.messages : [];
-    const lastAssistant = findLastAssistantMessage(normalizeCompletionMessages(messages));
-    const lastAssistantContent = lastAssistant
-      ? extractTextFromMessageContent(lastAssistant.content)
-      : undefined;
+    lastAssistant ??= findLastAssistantMessage(normalizeCompletionMessages(messages));
+    const lastAssistantContent = extractTextFromMessage(lastAssistant);
     const errorReason = failed ? formatSubAgentErrorReason(finalState?.error) : undefined;
     const content = failed
       ? errorReason
@@ -2374,24 +2374,24 @@ export class AgentRuntimeService {
     // The member's textual answer is only read in delegate mode below; a state
     // loaded via the fallback above arrives without `messages` (dropped from
     // the persisted Redis blob — see AgentStateManager.serializeStateForPersist),
-    // so rehydrate from the DB when we actually need them. An in-process
-    // params.finalState already carries them and skips this.
+    // so resolve the original final leaf from the DB when we actually need it.
+    // Keeping the original row preserves the exact content/metadata pairing
+    // that conversation-flow display grouping intentionally aggregates.
+    let lastAssistant: unknown;
     if (!failed && mode !== 'in_group' && finalState && !Array.isArray(finalState.messages)) {
       try {
-        finalState.messages = await this.refreshMessagesFromDB(finalState);
+        lastAssistant = await this.resolveLastAssistantMessageFromDB(finalState);
       } catch (error) {
         console.error(
-          '[%s] group-member bridge: failed to refresh messages from DB: %O',
+          '[%s] group-member bridge: failed to resolve final assistant from DB: %O',
           operationId,
           error,
         );
       }
     }
     const messages = Array.isArray(finalState?.messages) ? finalState.messages : [];
-    const lastAssistant = findLastAssistantMessage(normalizeCompletionMessages(messages));
-    const lastAssistantContent = lastAssistant
-      ? extractTextFromMessageContent(lastAssistant.content)
-      : undefined;
+    lastAssistant ??= findLastAssistantMessage(normalizeCompletionMessages(messages));
+    const lastAssistantContent = extractTextFromMessage(lastAssistant);
     const agentLabel = (finalState?.metadata?.agentId as string | undefined) ?? 'member';
     const memberErrorReason = failed ? formatSubAgentErrorReason(finalState?.error) : undefined;
     const anchorContent = failed
@@ -2548,12 +2548,7 @@ export class AgentRuntimeService {
     return { nextStepScheduled: resumed, state: {}, success: true };
   }
 
-  /**
-   * Reload the conversation messages from the database and flatten them for the
-   * runtime. Used when resuming a parked op so the next LLM step sees tool
-   * results written out-of-band (e.g. by a sub-agent completion bridge).
-   */
-  private async refreshMessagesFromDB(state: AgentState): Promise<AgentState['messages']> {
+  private async queryMessagesFromDB(state: AgentState) {
     let postProcessUrl: ((path: string | null) => Promise<string>) | undefined;
     try {
       const fileService = new FileService(this.serverDB, this.userId);
@@ -2562,7 +2557,7 @@ export class AgentRuntimeService {
       postProcessUrl = undefined;
     }
 
-    const dbMessages = await this.messageModel.query(
+    return this.messageModel.query(
       {
         agentId: state.metadata?.agentId,
         // Group runs must pass groupId, else the query filters `groupId IS NULL`
@@ -2574,9 +2569,37 @@ export class AgentRuntimeService {
       },
       { postProcessUrl },
     );
+  }
+
+  /**
+   * Reload the conversation messages from the database and flatten them for the
+   * runtime. Used when resuming a parked op so the next LLM step sees tool
+   * results written out-of-band (e.g. by a sub-agent completion bridge).
+   */
+  private async refreshMessagesFromDB(state: AgentState): Promise<AgentState['messages']> {
+    const dbMessages = await this.queryMessagesFromDB(state);
 
     const { flatList } = parse(dbMessages);
     return flatList as AgentState['messages'];
+  }
+
+  /**
+   * Use conversation-flow to select the active final assistant leaf, then
+   * recover that leaf from the original query result. FlatListBuilder moves
+   * child metadata onto its display-only group/first child, so the parsed leaf
+   * alone cannot reliably identify serialized multimodal content.
+   */
+  private async resolveLastAssistantMessageFromDB(state: AgentState): Promise<unknown> {
+    const dbMessages = await this.queryMessagesFromDB(state);
+    const { flatList } = parse(dbMessages);
+    const lastAssistant = findLastAssistantMessage(normalizeCompletionMessages(flatList));
+    const lastAssistantId = typeof lastAssistant?.id === 'string' ? lastAssistant.id : undefined;
+
+    return (
+      (lastAssistantId
+        ? dbMessages.find((message) => message.id === lastAssistantId)
+        : undefined) ?? lastAssistant
+    );
   }
 
   /**
