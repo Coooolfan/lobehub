@@ -21,9 +21,6 @@ permissions:
   contents: read
   packages: write
 
-env:
-  REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/lobehub
-
 jobs:
   build:
     name: Build linux/amd64 image
@@ -42,9 +39,11 @@ jobs:
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
         run: |
+          registry_image=$(echo "ghcr.io/${GITHUB_REPOSITORY_OWNER}/lobehub" | tr '[:upper:]' '[:lower:]')
           source_tag=$(echo "${SOURCE_REF}" | sed -E 's/[^a-zA-Z0-9_.-]+/-/g')
           commit_sha=$(git rev-parse --short HEAD)
           {
+            echo "registry_image=${registry_image}"
             echo "source_tag=${source_tag}"
             echo "sha_tag=${source_tag}-${commit_sha}"
             echo "commit_sha=${commit_sha}"
@@ -67,11 +66,12 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.REGISTRY_IMAGE }}:${{ steps.tags.outputs.source_tag }}
-            ${{ env.REGISTRY_IMAGE }}:${{ steps.tags.outputs.sha_tag }}
+            ${{ steps.tags.outputs.registry_image }}:${{ steps.tags.outputs.source_tag }}
+            ${{ steps.tags.outputs.registry_image }}:${{ steps.tags.outputs.sha_tag }}
 
       - name: Publish image summary
         env:
+          REGISTRY_IMAGE: ${{ steps.tags.outputs.registry_image }}
           SOURCE_TAG: ${{ steps.tags.outputs.source_tag }}
           SHA_TAG: ${{ steps.tags.outputs.sha_tag }}
         run: |
