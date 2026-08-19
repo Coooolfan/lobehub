@@ -276,6 +276,7 @@ describe('hetero exec command', () => {
         command: 'devin',
         extraArgs: ['--agent-type', 'coding', '--model', 'claude-sonnet-4-6-thinking'],
         initialModel: 'claude-sonnet-4-6-thinking',
+        permissionMode: 'bypass',
         prompt: 'do thing',
       }),
     );
@@ -646,6 +647,7 @@ describe('hetero exec command', () => {
       expect.objectContaining({
         agentType: 'devin',
         askUserBridge: expect.objectContaining({ pending: expect.any(Function) }),
+        permissionMode: 'bypass',
       }),
     );
   });
