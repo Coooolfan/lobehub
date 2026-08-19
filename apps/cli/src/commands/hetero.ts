@@ -157,6 +157,7 @@ const buildExtraArgs = (
                 ...(options.effort ? ['--effort', options.effort] : []),
               ]
             : options.type === 'cursor' ||
+                options.type === 'devin' ||
                 options.type === 'kimi-code' ||
                 options.type === 'opencode' ||
                 options.type === 'pi'
@@ -503,6 +504,7 @@ const exec = async (options: ExecOptions): Promise<void> => {
     (agentType === 'claude-code' ||
       agentType === 'cursor' ||
       agentType === 'droid' ||
+      agentType === 'devin' ||
       agentType === 'qoder') &&
     serverIngester
   ) {
@@ -510,6 +512,11 @@ const exec = async (options: ExecOptions): Promise<void> => {
       askBridge = new AskUserBridge(operationId, {
         identifier: agentType === 'cursor' ? 'claude-code' : agentType,
         provider: agentType,
+      });
+    } else if (agentType === 'devin') {
+      askBridge = new AskUserBridge(operationId, {
+        identifier: 'devin',
+        provider: 'devin',
       });
     } else {
       askServer = new LobeBuiltinMcpServer();
@@ -883,7 +890,10 @@ const exec = async (options: ExecOptions): Promise<void> => {
       // deltas so the current conversation receives text while the process is
       // running instead of seeing only the terminal assistant snapshot.
       includePartialMessages: options.type === 'claude-code',
-      initialModel: options.type === 'droid' || options.type === 'trae' ? options.model : undefined,
+      initialModel:
+        options.type === 'droid' || options.type === 'devin' || options.type === 'trae'
+          ? options.model
+          : undefined,
       operationId,
       prompt: resolved.prompt,
       resumeSessionId: options.resume,
@@ -919,7 +929,9 @@ const exec = async (options: ExecOptions): Promise<void> => {
         extraArgs,
         includePartialMessages: options.type === 'claude-code',
         initialModel:
-          options.type === 'droid' || options.type === 'trae' ? options.model : undefined,
+          options.type === 'droid' || options.type === 'devin' || options.type === 'trae'
+            ? options.model
+            : undefined,
         operationId,
         prompt: resolved.resumeFallbackPrompt ?? resolved.prompt,
         uploadImage,
