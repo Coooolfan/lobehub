@@ -6,6 +6,8 @@ import {
 } from '@lobechat/heterogeneous-agents/protocol';
 import { resolveHeteroSpawnCwd } from '@lobechat/heterogeneous-agents/workingDirectory';
 
+import { getTask, removeTask, saveTask } from '../daemon/taskRegistry';
+
 export interface SpawnHeteroAgentRunParams {
   agentType: string;
   /** Resolved `lh hetero exec` wrapper args. */
@@ -119,8 +121,10 @@ export function spawnHeteroAgentRun(
       resolve(result);
     };
 
+    let pid: number | undefined;
     const child = spawn(process.execPath, [...process.execArgv, ...cliArgs], {
       cwd: spawnCwd,
+      detached: true,
       env: {
         ...process.env,
         ...(assistantMessageId ? { LOBEHUB_ASSISTANT_MESSAGE_ID: assistantMessageId } : {}),
@@ -132,6 +136,24 @@ export function spawnHeteroAgentRun(
     });
 
     child.once('spawn', () => {
+      // Register the child into the task registry so `cancelHeteroTask`
+      // dispatched from the server can resolve it by operationId and signal
+      // the whole process group. `detached: true` places the CLI in its own
+      // group so a negative-PID signal reaches the ACP descendants without
+      // affecting the connect daemon.
+      pid = child.pid;
+      if (pid !== undefined) {
+        saveTask({
+          agentType,
+          operationId,
+          pid,
+          startedAt: new Date().toISOString(),
+          taskId: operationId,
+          topicId,
+          workspaceId,
+        });
+      }
+
       // Only safe to write stdin once the process actually started.
       try {
         child.stdin?.write(stdinPayload);
@@ -150,6 +172,12 @@ export function spawnHeteroAgentRun(
     });
 
     child.on('exit', (code, signal) => {
+      // Only remove the registry entry if the exiting PID still owns this
+      // task — a newer run that reused the same operationId must not be
+      // cleared by a stale exit event.
+      if (pid !== undefined && getTask(operationId)?.pid === pid) {
+        removeTask(operationId);
+      }
       logger?.info?.(`hetero exec exited (op=${operationId}) code=${code} signal=${signal}`);
     });
   });
