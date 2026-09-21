@@ -1,5 +1,5 @@
-name: Fork Docker Build (GHCR)
-run-name: Build ${{ inputs.source_ref }} for GHCR
+name: Fork Docker Build (Docker Hub)
+run-name: Build ${{ inputs.source_ref }} for Docker Hub
 
 # Fork-only manual image publisher. Keep this workflow on the fork's default
 # branch and select the source branch/tag/SHA through `source_ref`, so feature
@@ -19,7 +19,6 @@ concurrency:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
@@ -39,7 +38,7 @@ jobs:
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
         run: |
-          registry_image=$(echo "ghcr.io/${GITHUB_REPOSITORY_OWNER}/lobehub" | tr '[:upper:]' '[:lower:]')
+          registry_image=$(echo "${{ secrets.DOCKERHUB_USERNAME }}/lobehub" | tr '[:upper:]' '[:lower:]')
           source_tag=$(echo "${SOURCE_REF}" | sed -E 's/[^a-zA-Z0-9_.-]+/-/g')
           commit_sha=$(git rev-parse --short HEAD)
           {
@@ -49,12 +48,11 @@ jobs:
             echo "commit_sha=${commit_sha}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -76,7 +74,7 @@ jobs:
           SHA_TAG: ${{ steps.tags.outputs.sha_tag }}
         run: |
           {
-            echo "### Image pushed to GHCR"
+            echo "### Image pushed to Docker Hub"
             echo
             echo "\`${REGISTRY_IMAGE}:${SOURCE_TAG}\`"
             echo
