@@ -4,10 +4,14 @@ import type { OpenAICompatibleFactoryOptions } from '../../core/openaiCompatible
 import { createOpenAICompatibleRuntime } from '../../core/openaiCompatibleFactory';
 import { resolveParameters } from '../../core/parameterResolver';
 import { QwenAIStream } from '../../core/streams';
+import { convertOpenAITranscriptionUsage } from '../../core/usageConverters/openai';
+import type { ASROptions, ASRPayload, ASRResponse } from '../../types';
+import { getModelPricing } from '../../utils/getModelPricing';
 import { processMultiProviderModelList } from '../../utils/modelParse';
 import { createQwenImage } from './createImage';
 import { createQwenVideo } from './createVideo';
 import { isThinkingForcedQwenModel } from './modelId';
+import { createQwenAudioAsrFlashTranscription, QWEN_AUDIO_ASR_FLASH_MODEL } from './transcribe';
 
 export interface QwenModelCard {
   id: string;
@@ -164,4 +168,36 @@ export const params = {
   provider: ModelProvider.Qwen,
 } satisfies OpenAICompatibleFactoryOptions;
 
-export const LobeQwenAI = createOpenAICompatibleRuntime(params);
+const QwenOpenAICompatibleRuntime = createOpenAICompatibleRuntime(params);
+
+export class LobeQwenAI extends QwenOpenAICompatibleRuntime {
+  override async transcribe(payload: ASRPayload, options?: ASROptions): Promise<ASRResponse> {
+    const requestModel = this.getMappedModelId(payload.model);
+    if (requestModel !== QWEN_AUDIO_ASR_FLASH_MODEL) return super.transcribe(payload, options);
+
+    try {
+      const { text, usage } = await createQwenAudioAsrFlashTranscription({
+        apiKey: this._options.apiKey || '',
+        baseURL: this.baseURL,
+        headers: options?.headers,
+        payload,
+        requestModel,
+        signal: options?.signal,
+      });
+
+      if (options?.onUsage && usage) {
+        const pricing = await getModelPricing(
+          payload.model,
+          ModelProvider.Qwen,
+          options.pricingContext,
+        );
+        const converted = convertOpenAITranscriptionUsage(usage, pricing);
+        if (converted) await options.onUsage(converted);
+      }
+
+      return { text };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+}

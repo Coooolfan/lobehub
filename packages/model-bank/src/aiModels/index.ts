@@ -57,7 +57,8 @@ import { default as openrouter } from './openrouter';
 import { default as perplexity } from './perplexity';
 import { default as ppio } from './ppio';
 import { default as qiniu } from './qiniu';
-import { default as qwen } from './qwen';
+import { default as qwenBuiltinModels } from './qwen';
+import { qwenAsrModels } from './qwenAsr';
 import { default as replicate } from './replicate';
 import { default as sambanova } from './sambanova';
 import { default as search1api } from './search1api';
@@ -86,6 +87,8 @@ import { default as xinference } from './xinference';
 import { default as zenmux } from './zenmux';
 import { default as zeroone } from './zeroone';
 import { default as zhipu } from './zhipu';
+
+const qwen = [...qwenBuiltinModels, ...qwenAsrModels];
 
 type ModelProviderLoader = () => Promise<AiFullModelCard[]>;
 type ModelsMap = Record<string, AiFullModelCard[]>;
@@ -287,7 +290,7 @@ export { default as openrouter } from './openrouter';
 export { default as perplexity } from './perplexity';
 export { default as ppio } from './ppio';
 export { default as qiniu } from './qiniu';
-export { default as qwen } from './qwen';
+export { qwen };
 export { default as replicate } from './replicate';
 export { default as sambanova } from './sambanova';
 export { default as search1api } from './search1api';
